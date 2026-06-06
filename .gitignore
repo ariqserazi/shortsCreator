@@ -2,19 +2,22 @@
 node_modules/
 
 # Electron/electron-builder output
-dist/
 release/
 out/
 .cache/
-*.dmg
-*.exe
+dist/*
+!dist/
+!dist/shortsCreator-*.dmg
+!dist/shortsCreator-Setup-*.exe
 *.AppImage
 *.snap
 *.deb
 *.rpm
-*.blockmap
-latest*.yml
-builder-debug.yml
+dist/*.blockmap
+dist/latest*.yml
+dist/builder-debug.yml
+dist/mac-*/
+dist/win-*/
 
 # Logs and diagnostics
 logs/
