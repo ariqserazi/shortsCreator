@@ -11,101 +11,185 @@
     <main class="app-shell">
       <header class="app-header">
         <div>
-          <p class="eyebrow">Desktop b-roll generator</p>
+          <p class="eyebrow">Desktop video essay splitter</p>
           <h1>shortsCreator</h1>
-          <p class="header-copy">Generate silent H.264 clips from local source videos.</p>
+          <p class="header-copy">Turn one long anime video essay into vertical TikTok, Shorts, and Reels parts.</p>
         </div>
         <div class="status-pill" id="statusPill">Ready</div>
       </header>
 
       <section class="workspace-grid">
         <div class="panel controls-panel">
-          <div class="panel-header">
-            <h2>Folders</h2>
-            <p>Source videos are only read. Generated clips are written to the output folder.</p>
-          </div>
+          <section class="section">
+            <div class="panel-header">
+              <h2>Source Video</h2>
+              <p>Select one long source video. shortsCreator only reads this file.</p>
+            </div>
 
-          <div class="field-stack">
             <label class="field">
-              <span>Input Folder</span>
+              <span>Video File</span>
               <div class="path-row">
-                <input id="inputFolder" type="text" placeholder="Choose a folder with videos" />
-                <button id="inputBrowseButton" type="button">Browse</button>
+                <input id="sourceVideo" type="text" placeholder="Choose a .mp4, .mov, .mkv, .avi, or .m4v file" />
+                <button id="sourceBrowseButton" type="button">Browse</button>
               </div>
             </label>
+
+            <div class="info-strip" id="videoInfoText">No source video selected.</div>
+          </section>
+
+          <section class="section">
+            <div class="panel-header compact">
+              <h2>Output</h2>
+            </div>
 
             <label class="field">
               <span>Output Folder</span>
               <div class="path-row">
-                <input id="outputFolder" type="text" placeholder="Choose where clips should be saved" />
+                <input id="outputFolder" type="text" placeholder="Choose where generated parts should be saved" />
                 <button id="outputBrowseButton" type="button">Browse</button>
               </div>
             </label>
-          </div>
 
-          <div class="panel-header compact">
-            <h2>Clip Settings</h2>
-          </div>
-
-          <div class="settings-grid">
             <label class="field">
-              <span>Clip Count</span>
-              <input id="clipCount" type="number" min="1" step="1" />
+              <span>Video Title</span>
+              <input id="videoTitle" type="text" placeholder="Best Romance Anime of 2026" />
             </label>
-            <label class="field">
-              <span>Clip Length</span>
-              <input id="clipLength" type="number" min="1" step="1" />
+          </section>
+
+          <section class="section">
+            <div class="panel-header compact">
+              <h2>Split Settings</h2>
+            </div>
+
+            <div class="settings-grid">
+              <label class="field">
+                <span>Split Mode</span>
+                <select id="splitMode">
+                  <option value="length">Split by segment length</option>
+                  <option value="parts">Split by number of parts</option>
+                </select>
+              </label>
+
+              <label class="field" id="segmentLengthField">
+                <span>Segment Length (seconds)</span>
+                <input id="segmentLength" type="number" min="1" step="1" />
+              </label>
+
+              <label class="field" id="partCountField">
+                <span>Number of Parts</span>
+                <input id="partCount" type="number" min="1" step="1" />
+              </label>
+
+              <label class="field">
+                <span>Overlap / Rewind (seconds)</span>
+                <input id="overlapSeconds" type="number" min="0" step="1" />
+              </label>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="panel-header compact">
+              <h2>Layout</h2>
+            </div>
+
+            <div class="settings-grid">
+              <label class="field">
+                <span>Vertical Layout Mode</span>
+                <select id="layoutMode">
+                  <option value="blurred">Blurred background</option>
+                  <option value="crop">Crop to fill</option>
+                  <option value="black">Black background</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Output Quality (CRF)</span>
+                <input id="crf" type="number" min="18" max="30" step="1" />
+              </label>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="panel-header compact">
+              <h2>Captions</h2>
+            </div>
+
+            <div class="settings-grid">
+              <label class="field">
+                <span>Caption Source</span>
+                <select id="captionSource">
+                  <option value="none">No captions</option>
+                  <option value="srt">Use SRT file</option>
+                  <option value="auto">Auto-generate locally (future)</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Caption Style</span>
+                <select id="captionStylePreset">
+                  <option value="tiktok">TikTok style</option>
+                  <option value="simple">Simple subtitles</option>
+                  <option value="boxed">Boxed subtitles</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Caption Font Size</span>
+                <input id="captionFontSize" type="number" min="24" max="120" step="1" />
+              </label>
+
+              <label class="field">
+                <span>Caption Vertical Position</span>
+                <input id="captionVerticalPosition" type="number" min="300" max="1800" step="10" />
+              </label>
+            </div>
+
+            <label class="field srt-field" id="srtFileField">
+              <span>SRT File</span>
+              <div class="path-row">
+                <input id="srtFile" type="text" placeholder="Choose a full-video .srt file" />
+                <button id="srtBrowseButton" type="button">Browse</button>
+              </div>
             </label>
-            <label class="field">
-              <span>Skip First Seconds</span>
-              <input id="skipFirstSeconds" type="number" min="0" step="1" />
-            </label>
-            <label class="field">
-              <span>Skip Last Seconds</span>
-              <input id="skipLastSeconds" type="number" min="0" step="1" />
-            </label>
-          </div>
 
-          <label class="toggle-card" for="randomizeStartTimes">
-            <input id="randomizeStartTimes" type="checkbox" />
-            <span class="toggle-track" aria-hidden="true"></span>
-            <span>
-              <strong>Randomize start times</strong>
-              <small>Turn off for sequential clips through each source video.</small>
-            </span>
-          </label>
+            <div class="info-strip" id="captionNote">SRT captions are offset per generated part before being burned in.</div>
+          </section>
 
-          <div class="panel-header compact">
-            <h2>FFmpeg</h2>
-            <p id="ffmpegSummary">Checking ffmpeg and ffprobe...</p>
-          </div>
+          <section class="section">
+            <div class="panel-header compact">
+              <h2>FFmpeg</h2>
+              <p id="ffmpegSummary">Checking ffmpeg and ffprobe...</p>
+            </div>
 
-          <div class="tool-grid">
-            <button id="checkFfmpegButton" type="button">Check FFmpeg</button>
-            <button id="chooseFfmpegButton" type="button">Choose ffmpeg</button>
-            <button id="chooseFfprobeButton" type="button">Choose ffprobe</button>
-          </div>
-
-          <div class="action-row">
-            <button id="generateButton" class="primary-button" type="button">Generate Clips</button>
-            <button id="openOutputButton" type="button">Open Output Folder</button>
-            <button id="clearLogButton" type="button">Clear Log</button>
-          </div>
+            <div class="tool-grid">
+              <button id="checkFfmpegButton" type="button">Check FFmpeg</button>
+              <button id="chooseFfmpegButton" type="button">Choose ffmpeg</button>
+              <button id="chooseFfprobeButton" type="button">Choose ffprobe</button>
+            </div>
+          </section>
         </div>
 
-        <div class="panel output-panel">
-          <div class="panel-header">
-            <h2>Progress</h2>
-            <p id="statusText">Ready.</p>
-          </div>
+        <aside class="panel output-panel">
+          <div class="generate-card">
+            <div>
+              <h2>Generate Parts</h2>
+              <p id="statusText">Ready.</p>
+            </div>
 
-          <div class="progress-shell" aria-label="Generation progress">
-            <div id="progressBar" class="progress-bar"></div>
+            <div class="progress-shell" aria-label="Generation progress">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <div id="progressText" class="progress-text">0%</div>
+
+            <div class="action-row">
+              <button id="generateButton" class="primary-button" type="button">Generate Parts</button>
+              <button id="openOutputButton" type="button">Open Output Folder</button>
+              <button id="clearLogButton" type="button">Clear Log</button>
+            </div>
           </div>
-          <div id="progressText" class="progress-text">0%</div>
 
           <div class="results-header">
-            <h2>Generated Clips</h2>
+            <h2>Generated Files</h2>
             <span id="generatedCount">0 files</span>
           </div>
           <ol id="generatedList" class="generated-list"></ol>
@@ -114,7 +198,7 @@
             <h2>Live Log</h2>
           </div>
           <div id="logOutput" class="log-output" aria-live="polite"></div>
-        </div>
+        </aside>
       </section>
     </main>
 

@@ -2,9 +2,11 @@
 
 const path = require("node:path")
 const { dialog, ipcMain, shell } = require("electron")
-const { generateClips } = require("../core/clipGenerator")
 const { detectFfmpegTools } = require("../core/ffmpegTools")
-const { scanGeneratedClips } = require("../core/videoScanner")
+const { scanGeneratedParts } = require("../core/filenameUtils")
+const { readVideoInfo } = require("../core/videoInfo")
+const { generateVideoParts } = require("../core/videoProcessor")
+const { isSupportedInputVideo } = require("../core/validation")
 
 function registerIpcHandlers(options) {
   const settingsStore = options.settingsStore
@@ -60,6 +62,48 @@ function registerIpcHandlers(options) {
     return result.filePaths[0]
   })
 
+  ipcMain.handle("dialog:select-source-video", async (event, dialogOptions = {}) => {
+    const result = await dialog.showOpenDialog(getMainWindow(), {
+      title: dialogOptions.title || "Select Source Video",
+      defaultPath: dialogOptions.defaultPath || undefined,
+      filters: [
+        { name: "Video Files", extensions: ["mp4", "mov", "mkv", "avi", "m4v"] },
+        { name: "All Files", extensions: ["*"] }
+      ],
+      properties: ["openFile"]
+    })
+
+    if (result.canceled || !result.filePaths.length) {
+      return ""
+    }
+
+    const selectedFile = result.filePaths[0]
+
+    if (!isSupportedInputVideo(selectedFile)) {
+      throw new Error("Choose a supported video file: .mp4, .mov, .mkv, .avi, or .m4v.")
+    }
+
+    return selectedFile
+  })
+
+  ipcMain.handle("dialog:select-srt", async (event, dialogOptions = {}) => {
+    const result = await dialog.showOpenDialog(getMainWindow(), {
+      title: dialogOptions.title || "Select SRT Subtitle File",
+      defaultPath: dialogOptions.defaultPath || undefined,
+      filters: [
+        { name: "SRT Subtitle Files", extensions: ["srt"] },
+        { name: "All Files", extensions: ["*"] }
+      ],
+      properties: ["openFile"]
+    })
+
+    if (result.canceled || !result.filePaths.length) {
+      return ""
+    }
+
+    return result.filePaths[0]
+  })
+
   ipcMain.handle("dialog:select-tool", async (event, dialogOptions = {}) => {
     const result = await dialog.showOpenDialog(getMainWindow(), {
       title: dialogOptions.title || "Select FFmpeg Tool",
@@ -88,12 +132,27 @@ function registerIpcHandlers(options) {
     return checkFfmpeg(settings)
   })
 
+  ipcMain.handle("video:info", async (event, settings = {}) => {
+    const savedSettings = saveSettings(Object.assign({}, getSavedSettings(), settings || {}))
+    const tools = await checkFfmpeg(savedSettings)
+
+    if (!tools.ok) {
+      throw new Error(tools.message)
+    }
+
+    if (!savedSettings.sourceVideo) {
+      throw new Error("Choose a source video first.")
+    }
+
+    return readVideoInfo(toolState.ffprobePath, savedSettings.sourceVideo)
+  })
+
   ipcMain.handle("generation:scan-output", (event, outputFolder) => {
     if (!outputFolder) {
       return []
     }
 
-    return scanGeneratedClips(outputFolder)
+    return scanGeneratedParts(outputFolder)
   })
 
   ipcMain.handle("generation:start", async (event, settings) => {
@@ -112,7 +171,7 @@ function registerIpcHandlers(options) {
         throw new Error(tools.message)
       }
 
-      const result = await generateClips({
+      const result = await generateVideoParts({
         settings: savedSettings,
         ffmpegPath: toolState.ffmpegPath,
         ffprobePath: toolState.ffprobePath,

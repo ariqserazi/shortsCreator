@@ -5,7 +5,7 @@ const path = require("node:path")
 const { execFile } = require("node:child_process")
 
 const INSTALL_HELP = [
-  "FFmpeg and ffprobe are required to generate clips.",
+  "FFmpeg and ffprobe are required to generate video parts.",
   "",
   "macOS: install FFmpeg with Homebrew, then run: brew install ffmpeg",
   "Windows: download FFmpeg from https://ffmpeg.org/download.html or install it with winget/chocolatey.",
@@ -148,6 +148,49 @@ async function getVideoDuration(ffprobePath, filePath) {
   return duration
 }
 
+async function getFfmpegFilters(ffmpegPath) {
+  const result = await execFileAsync(ffmpegPath, [
+    "-hide_banner",
+    "-filters"
+  ], {
+    cwd: process.cwd(),
+    maxBuffer: 1024 * 1024 * 4
+  })
+
+  return String(result.stdout || result.stderr || "")
+}
+
+async function getFfmpegOverlayFilter(ffmpegPath) {
+  const filters = await getFfmpegFilters(ffmpegPath)
+
+  if (/(^|\n)\s*\S+\s+subtitles\s+/m.test(filters)) {
+    return "subtitles"
+  }
+
+  if (/(^|\n)\s*\S+\s+ass\s+/m.test(filters)) {
+    return "ass"
+  }
+
+  return ""
+}
+
+async function runFfprobeJson(ffprobePath, args) {
+  const result = await execFileAsync(ffprobePath, [
+    "-of",
+    "json",
+    ...args
+  ], {
+    cwd: process.cwd(),
+    maxBuffer: 1024 * 1024 * 10
+  })
+
+  try {
+    return JSON.parse(result.stdout || "{}")
+  } catch (error) {
+    throw new Error(`Could not parse ffprobe output: ${error.message}`)
+  }
+}
+
 async function runFfmpeg(ffmpegPath, args) {
   await execFileAsync(ffmpegPath, args, {
     cwd: process.cwd(),
@@ -158,6 +201,9 @@ async function runFfmpeg(ffmpegPath, args) {
 module.exports = {
   INSTALL_HELP,
   detectFfmpegTools,
+  getFfmpegFilters,
+  getFfmpegOverlayFilter,
   getVideoDuration,
+  runFfprobeJson,
   runFfmpeg
 }

@@ -1,43 +1,53 @@
 # shortsCreator
 
-shortsCreator is a cross-platform desktop app for generating silent H.264 b-roll clips from local video files. Choose an input folder, choose an output folder, set the clip settings, and the app writes numbered `.mp4` clips such as `broll_0001.mp4`, `broll_0002.mp4`, and so on.
+shortsCreator is a cross-platform desktop app for turning one long anime video essay into multiple vertical short-form videos for TikTok, YouTube Shorts, Instagram Reels, and similar platforms.
 
-The app never modifies source videos. It only writes generated clips to the selected output folder.
+It is a normal Electron desktop app, not a Premiere Pro extension and not a browser-only localhost tool. End users download an installer from GitHub Releases, install shortsCreator, open it like any other app, choose a long video, and generate numbered vertical parts.
+
+## Screenshots
+
+Screenshots will be added after the first packaged UI pass is manually captured on macOS and Windows.
 
 ## What It Does
 
-- scans the top level of an input folder for supported video files
-- supports `.mp4`, `.mkv`, `.mov`, `.avi`, and `.m4v`
-- generates silent H.264 `.mp4` clips with `ffmpeg`
-- reads source durations with `ffprobe`
-- supports clip count, clip length, skip first seconds, and skip last seconds
-- supports randomized start times or sequential start times
-- logs progress and per-clip failures in the desktop UI
-- runs as a normal macOS or Windows desktop application
+- reads one source video file: `.mp4`, `.mov`, `.mkv`, `.avi`, or `.m4v`
+- converts each output part to vertical 9:16 video at `1080x1920`
+- creates `.mp4` files with H.264 video, AAC audio, and `yuv420p`
+- splits by segment length or by desired number of parts
+- supports intentional overlap/rewind between parts
+- adds a top title label in the format `{Video Title} - Part {X}`
+- supports no captions or burning an existing full-video `.srt` file
+- prepares architecture for future local Whisper-style caption generation
+- uses secure Electron IPC with `contextIsolation: true`, `nodeIntegration: false`, and a preload bridge
+- never modifies or deletes the source video
 
-## End User Install
+## Supported Platforms
 
-### macOS
+- macOS
+- Windows
 
-1. Open the GitHub Releases page for this project.
-2. Download `shortsCreator-x.x.x.dmg`.
-3. Open the DMG.
-4. Drag `shortsCreator` into Applications.
-5. Open `shortsCreator` from Applications.
+Expected release artifacts:
 
-### Windows
+- macOS: `shortsCreator.app` and `shortsCreator-x.x.x.dmg`
+- Windows: `shortsCreator.exe` and `shortsCreator-Setup-x.x.x.exe`
 
-1. Open the GitHub Releases page for this project.
-2. Download `shortsCreator-Setup-x.x.x.exe`.
-3. Double-click the installer.
-4. Follow the installer prompts.
-5. Open `shortsCreator` from the Start Menu or Desktop shortcut.
+## End User Installation
 
-End users do not need to clone the repository, install Node.js, run npm commands, open localhost, or use any other video editing app.
+End users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, localhost, or a cloned repository.
 
-## FFmpeg Requirement
+1. Go to [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
+2. Download the installer for your operating system.
+3. Install shortsCreator.
+4. Open shortsCreator like a normal desktop app.
+5. Select one long video essay and generate vertical parts.
 
-shortsCreator needs both `ffmpeg` and `ffprobe`.
+macOS users should download `shortsCreator-x.x.x.dmg`.
+
+Windows users should download `shortsCreator-Setup-x.x.x.exe`.
+
+## FFmpeg Setup
+
+shortsCreator needs both `ffmpeg` and `ffprobe` to inspect and render video.
 
 Detection order:
 
@@ -54,48 +64,115 @@ Detection order:
    - `C:\Program Files\ffmpeg\bin\ffmpeg.exe`
    - `C:\Program Files\ffmpeg\bin\ffprobe.exe`
 
-If automatic detection fails, use the `Choose ffmpeg` and `Choose ffprobe` buttons in the app. shortsCreator saves those paths between launches.
+If detection fails, use `Choose ffmpeg` and `Choose ffprobe` in the app. shortsCreator saves those paths for future launches.
 
-### Install FFmpeg On macOS
+Bundling FFmpeg and FFprobe inside the packaged app is preferred for future releases, but this first implementation keeps manual/system FFmpeg detection so unsigned development builds stay straightforward.
 
-With Homebrew:
+### macOS FFmpeg Install
 
 ```bash
 brew install ffmpeg
 ```
 
-### Install FFmpeg On Windows
-
-Use one of these options:
+### Windows FFmpeg Install
 
 ```powershell
 winget install Gyan.FFmpeg
 ```
 
-or download a Windows build from [ffmpeg.org](https://ffmpeg.org/download.html), then choose `ffmpeg.exe` and `ffprobe.exe` manually in shortsCreator.
+You can also download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html), then select `ffmpeg.exe` and `ffprobe.exe` manually in shortsCreator.
 
 ## How To Use
 
 1. Open shortsCreator.
-2. Choose an input folder containing local video files.
-3. Choose an output folder for generated clips.
-4. Set clip count, clip length, skip first seconds, skip last seconds, and randomization.
-5. Click `Check FFmpeg` if you want to confirm tool detection.
-6. Click `Generate Clips`.
-7. Watch progress, generated files, and logs in the app.
-8. Click `Open Output Folder` to view the generated `.mp4` clips.
+2. Choose a source video file.
+3. Choose an output folder.
+4. Enter the video title.
+5. Choose split mode: segment length or number of parts.
+6. Set overlap/rewind seconds.
+7. Choose a 9:16 layout mode.
+8. Choose caption settings.
+9. Click `Generate Parts`.
+10. Use `Open Output Folder` to view the generated files.
 
-Sequential mode runs through each source video in clip-length steps before moving to the next source file. Randomized mode chooses valid start times from usable source videos.
+Output filenames are sanitized and numbered, for example:
 
-Existing files named like `broll_0001.mp4` may be overwritten when a new run writes the same numbered output. shortsCreator logs a warning before overwriting. It does not delete old files.
+- `best-romance-anime-2026-part-01.mp4`
+- `best-romance-anime-2026-part-02.mp4`
+- `best-romance-anime-2026-part-03.mp4`
 
-## Development
+If a matching file already exists, shortsCreator writes a unique numbered variant instead of overwriting unrelated files.
 
-Requirements:
+## Split Modes
 
-- Node.js for development
+### Split By Segment Length
+
+You choose how long each part should be.
+
+Example: a 20 minute source video, 60 second segment length, and 5 second overlap creates:
+
+- Part 1: `0:00` to `1:00`
+- Part 2: `0:55` to `1:55`
+- Part 3: `1:50` to `2:50`
+- Part 4: `2:45` to `3:45`
+
+The final part is trimmed to the end of the source video when needed.
+
+### Split By Number Of Parts
+
+You choose how many parts you want. shortsCreator calculates the segment length from the source duration and overlap so the planned parts cover the video.
+
+## Overlap / Rewind
+
+Overlap intentionally starts each part a few seconds before the previous part ended. This helps each new part feel less abrupt when watched as a series.
+
+Rules:
+
+- overlap must be `0` or greater
+- overlap must be less than the segment length
+- the source video is never modified
+
+## Layout Modes
+
+### Blurred Background
+
+Default. A scaled, blurred copy fills the 1080x1920 canvas while the original video is centered on top. This works well for horizontal anime/video essay footage.
+
+### Crop To Fill
+
+The video is scaled and cropped to fill 1080x1920. This is useful for already vertical or center-focused content.
+
+### Black Background
+
+The original video is fit inside 1080x1920 with a black background. This is useful when you do not want blur.
+
+## Captions
+
+Caption source options:
+
+- `No captions`
+- `Use SRT file`
+- `Auto-generate locally (future)`
+
+The current working version supports no captions and importing an existing `.srt` file. The SRT should be timed against the full source video. shortsCreator slices and offsets subtitle cues for each generated part before burning them into the output.
+
+Caption style settings include:
+
+- TikTok style
+- simple subtitles
+- boxed subtitles
+- font size
+- vertical position
+
+Local automatic captions are not faked. The `captionGenerator.js` module exists as the integration point for a future local Whisper-style tool such as `whisper.cpp` or `faster-whisper`, but automatic transcription is not fully implemented yet and does not use paid APIs or cloud services.
+
+## Developer Setup
+
+Developer requirements:
+
+- Node.js
 - npm
-- `ffmpeg` and `ffprobe` for clip generation testing
+- FFmpeg and FFprobe for video generation testing
 
 Install dependencies:
 
@@ -109,15 +186,13 @@ Run the desktop app in development:
 npm run dev
 ```
 
-This launches Electron directly. The packaged app is still a normal desktop application; there is no browser-only localhost workflow.
-
-Validate the project structure and JavaScript syntax:
+Validate project structure and JavaScript syntax:
 
 ```bash
 npm run validate
 ```
 
-## Build Commands
+## Build Installers
 
 Create an unpacked local build:
 
@@ -145,54 +220,63 @@ npm run dist
 
 Installer output is written to `dist/`.
 
-Expected release artifacts:
-
-- `shortsCreator-1.0.0.dmg`
-- `shortsCreator-Setup-1.0.0.exe`
-
-macOS installers are best built on macOS. Windows installers are best built on Windows or in CI. Unsigned development builds are supported, but one machine may not perfectly build and sign every target.
+macOS installers are best built on macOS. Windows installers are best built on Windows or CI. Do not assume one OS can perfectly build and sign every platform.
 
 ## GitHub Releases
+
+Distribution page:
+
+[https://github.com/ariqserazi/shortsCreator/releases](https://github.com/ariqserazi/shortsCreator/releases)
 
 Recommended release flow:
 
 1. Run `npm install`.
-2. On macOS, run `npm run build:mac` to create the DMG.
-3. On Windows or Windows CI, run `npm run build:win` to create the EXE installer.
-4. Upload the generated files from `dist/` to a GitHub Release.
-5. Users download the correct installer for their computer.
+2. On macOS, run `npm run build:mac`.
+3. On Windows or Windows CI, run `npm run build:win`.
+4. Upload generated files from `dist/` to a GitHub Release.
+5. Users download the correct installer for their OS.
 
-## Security Warnings
+Expected upload names:
 
-Unsigned builds may show operating system warnings:
+- `shortsCreator-x.x.x.dmg`
+- `shortsCreator-Setup-x.x.x.exe`
+
+## Unsigned App Warnings
+
+Unsigned development builds may trigger operating system warnings:
 
 - Windows may show Microsoft SmartScreen warnings.
 - macOS may show Gatekeeper warnings.
 
-Production releases should eventually be code signed:
+Production releases should eventually use:
 
-- macOS with an Apple Developer ID certificate and notarization.
-- Windows with a trusted code signing certificate.
+- Apple Developer ID signing and notarization for macOS
+- a Windows code signing certificate for Windows
 
 ## Troubleshooting
 
-### FFmpeg Is Not Detected
+### FFmpeg Is Missing
 
-- Click `Check FFmpeg` and read the message in the log.
+- Click `Check FFmpeg` in shortsCreator.
 - Install FFmpeg with Homebrew, winget, Chocolatey, or a downloaded build.
 - Use `Choose ffmpeg` and `Choose ffprobe` to select the binaries manually.
-- Confirm both tools are from the same FFmpeg install.
+- Confirm both tools come from the same FFmpeg install.
 
-### No Clips Were Generated
+### FFmpeg Fails On Captions
 
-- Confirm the input folder contains supported video files at the top level.
-- Check that skip first seconds and skip last seconds leave enough usable duration.
-- Reduce clip length or clip count for short source videos.
-- Read the live log for skipped files or per-clip failures.
+The current caption renderer uses FFmpeg subtitle/ASS support. Most standard FFmpeg builds include this. If your build does not, install a full FFmpeg build and select it manually.
 
-### Output Files Already Exist
+### No Video Parts Were Generated
 
-shortsCreator uses stable numbered names. If `broll_0001.mp4` already exists, a new run can overwrite it and will log a warning first. Move old clips to another folder if you want to keep every previous run.
+- Confirm the source video exists and uses a supported extension.
+- Confirm the output folder is valid.
+- Confirm the video title is not empty.
+- Confirm overlap is less than segment length.
+- Read the live log for FFmpeg errors.
+
+### Automatic Captions Do Not Run
+
+Automatic local transcription is planned but not implemented in this version. Use `No captions` or `Use SRT file`.
 
 ## License
 

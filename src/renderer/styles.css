@@ -1,19 +1,19 @@
 :root {
   color-scheme: dark;
-  --bg: #101214;
-  --panel: #171a1d;
-  --panel-soft: #1d2225;
-  --panel-strong: #242b2f;
-  --border: #30383d;
-  --border-strong: #3f5956;
-  --text: #edf2f1;
-  --muted: #9aa6a3;
-  --faint: #69736f;
-  --accent: #36c7a2;
-  --accent-strong: #25a889;
-  --warning: #e4a84f;
-  --danger: #ed6b7c;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-soft: #1e232b;
+  --panel-strong: #252b35;
+  --border: #303746;
+  --border-strong: #4b6a72;
+  --text: #f2f6f8;
+  --muted: #a4adb8;
+  --faint: #6f7a86;
+  --accent: #3dd5c4;
+  --accent-strong: #18aa99;
+  --warning: #e6b460;
+  --danger: #f16d82;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
   --radius: 8px;
 }
 
@@ -25,17 +25,20 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+  background:
+    radial-gradient(circle at top left, rgba(61, 213, 196, 0.08), transparent 34rem),
+    var(--bg);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 body {
-  min-width: 860px;
+  min-width: 900px;
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -43,40 +46,56 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 10px 13px;
-  background: #24292d;
+  background: #252b33;
   color: var(--text);
-  font-weight: 700;
+  font-weight: 750;
   cursor: pointer;
   transition: background-color 130ms ease, border-color 130ms ease, transform 130ms ease;
 }
 
 button:hover:not(:disabled) {
-  background: #2b3236;
-  border-color: #435057;
+  background: #303844;
+  border-color: #4b5768;
 }
 
 button:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-button:disabled {
+button:disabled,
+input:disabled,
+select:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 11px 12px;
-  background: #101315;
+  background: #10141a;
   color: var(--text);
   outline: none;
 }
 
-input:focus {
+select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+input:focus,
+select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(54, 199, 162, 0.13);
+  box-shadow: 0 0 0 3px rgba(61, 213, 196, 0.13);
 }
 
 .app-shell {
@@ -96,7 +115,7 @@ input:focus {
   margin: 0 0 5px;
   color: var(--accent);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -108,7 +127,7 @@ p {
 }
 
 h1 {
-  font-size: 30px;
+  font-size: 31px;
   line-height: 1.1;
 }
 
@@ -135,15 +154,15 @@ h2 {
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   padding: 8px 12px;
-  background: rgba(54, 199, 162, 0.08);
+  background: rgba(61, 213, 196, 0.08);
   color: var(--accent);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(420px, 0.82fr) minmax(420px, 1fr);
+  grid-template-columns: minmax(460px, 0.94fr) minmax(420px, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -151,13 +170,19 @@ h2 {
 .panel {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--panel);
+  background: rgba(23, 26, 33, 0.96);
   box-shadow: var(--shadow);
 }
 
 .controls-panel,
 .output-panel {
   padding: 18px;
+}
+
+.section + .section {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(48, 55, 70, 0.75);
 }
 
 .panel-header {
@@ -167,10 +192,10 @@ h2 {
 }
 
 .panel-header.compact {
-  margin-top: 20px;
+  margin-bottom: 12px;
 }
 
-.field-stack,
+.field,
 .settings-grid,
 .tool-grid,
 .action-row {
@@ -183,14 +208,13 @@ h2 {
 }
 
 .field {
-  display: grid;
   gap: 7px;
 }
 
 .field span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .path-row {
@@ -199,84 +223,61 @@ h2 {
   gap: 9px;
 }
 
-.toggle-card {
-  display: grid;
-  grid-template-columns: auto auto 1fr;
-  gap: 12px;
-  align-items: center;
-  margin-top: 14px;
+.info-strip {
+  margin-top: 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--panel-soft);
-  cursor: pointer;
-}
-
-.toggle-card input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.toggle-track {
-  position: relative;
-  display: inline-flex;
-  width: 42px;
-  height: 24px;
-  border-radius: 999px;
-  background: #343c40;
-  transition: background-color 140ms ease;
-}
-
-.toggle-track::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #d7dfdc;
-  transition: transform 140ms ease;
-}
-
-.toggle-card input:checked + .toggle-track {
-  background: var(--accent-strong);
-}
-
-.toggle-card input:checked + .toggle-track::after {
-  transform: translateX(18px);
-}
-
-.toggle-card strong {
-  display: block;
-  font-size: 13px;
-}
-
-.toggle-card small {
-  display: block;
-  margin-top: 2px;
   color: var(--muted);
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.srt-field {
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+.muted-field {
+  opacity: 0.55;
 }
 
 .tool-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.generate-card {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--panel-soft);
+}
+
+.generate-card p {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .action-row {
-  grid-template-columns: 1.2fr 1fr auto;
-  margin-top: 18px;
+  grid-template-columns: 1.1fr 1fr auto;
 }
 
 .primary-button {
-  border-color: rgba(54, 199, 162, 0.7);
-  background: linear-gradient(180deg, #33c29f, #16866f);
-  color: #051512;
+  border-color: rgba(61, 213, 196, 0.72);
+  background: linear-gradient(180deg, #3dd5c4, #15998b);
+  color: #061615;
 }
 
 .primary-button:hover:not(:disabled) {
-  background: linear-gradient(180deg, #43d3af, #1b947b);
+  background: linear-gradient(180deg, #55e2d2, #1aa99a);
 }
 
 .progress-shell {
@@ -285,22 +286,21 @@ h2 {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: #0e1113;
+  background: #0e1116;
 }
 
 .progress-bar {
   width: 0%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), #7ed7c1);
+  background: linear-gradient(90deg, var(--accent), #93eadf);
   transition: width 150ms ease;
 }
 
 .progress-text {
-  margin: 8px 0 20px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .results-header,
@@ -315,14 +315,14 @@ h2 {
 .results-header span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 .generated-list {
   display: grid;
   gap: 7px;
   min-height: 134px;
-  max-height: 190px;
+  max-height: 210px;
   margin: 0 0 20px;
   padding: 0;
   overflow: auto;
@@ -334,14 +334,14 @@ h2 {
   border-radius: var(--radius);
   padding: 9px 10px;
   background: var(--panel-soft);
-  color: #dce5e2;
+  color: #e0e8ea;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   word-break: break-all;
 }
 
 .generated-list:empty::before {
-  content: "Generated clips will appear here.";
+  content: "Generated part files will appear here.";
   display: flex;
   align-items: center;
   min-height: 74px;
@@ -352,14 +352,14 @@ h2 {
 }
 
 .log-output {
-  min-height: 280px;
-  max-height: calc(100vh - 470px);
+  min-height: 320px;
+  max-height: calc(100vh - 520px);
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 13px;
-  background: #0b0d0f;
-  color: #d9e3df;
+  background: #0b0e13;
+  color: #dde7e9;
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 12px;
   line-height: 1.55;
@@ -378,7 +378,7 @@ h2 {
   color: var(--warning);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1040px) {
   body {
     min-width: 0;
   }

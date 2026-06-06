@@ -32,15 +32,21 @@ contextBridge.exposeInMainWorld("shortsCreator", {
   saveSettings(settings) {
     return ipcRenderer.invoke("settings:save", settings)
   },
-  selectInputFolder(defaultPath) {
-    return ipcRenderer.invoke("dialog:select-folder", {
-      title: "Select Input Folder",
+  selectSourceVideo(defaultPath) {
+    return ipcRenderer.invoke("dialog:select-source-video", {
+      title: "Select Source Video",
       defaultPath
     })
   },
   selectOutputFolder(defaultPath) {
     return ipcRenderer.invoke("dialog:select-folder", {
       title: "Select Output Folder",
+      defaultPath
+    })
+  },
+  selectSrtFile(defaultPath) {
+    return ipcRenderer.invoke("dialog:select-srt", {
+      title: "Select SRT Subtitle File",
       defaultPath
     })
   },
@@ -71,7 +77,10 @@ contextBridge.exposeInMainWorld("shortsCreator", {
   checkFfmpeg(settings) {
     return ipcRenderer.invoke("ffmpeg:check", settings)
   },
-  generateClips(settings) {
+  readVideoInfo(settings) {
+    return ipcRenderer.invoke("video:info", settings)
+  },
+  generateParts(settings) {
     return ipcRenderer.invoke("generation:start", settings)
   },
   scanOutput(outputFolder) {

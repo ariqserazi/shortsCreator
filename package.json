@@ -2,7 +2,7 @@
   "name": "shortscreator",
   "version": "1.0.0",
   "private": true,
-  "description": "A cross-platform desktop app for generating silent H.264 b-roll clips with ffmpeg.",
+  "description": "A cross-platform desktop app for turning long video essays into vertical short-form video parts.",
   "main": "src/main/main.js",
   "scripts": {
     "dev": "electron .",
@@ -17,8 +17,9 @@
     "electron",
     "ffmpeg",
     "video",
-    "broll",
-    "clips"
+    "shorts",
+    "captions",
+    "desktop"
   ],
   "author": "Ariq Serazi",
   "license": "MIT"

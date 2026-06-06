@@ -14,47 +14,67 @@
   }
 
   function cacheDom() {
-    dom.inputFolder = document.getElementById("inputFolder")
-    dom.outputFolder = document.getElementById("outputFolder")
-    dom.clipCount = document.getElementById("clipCount")
-    dom.clipLength = document.getElementById("clipLength")
-    dom.skipFirstSeconds = document.getElementById("skipFirstSeconds")
-    dom.skipLastSeconds = document.getElementById("skipLastSeconds")
-    dom.randomizeStartTimes = document.getElementById("randomizeStartTimes")
-    dom.inputBrowseButton = document.getElementById("inputBrowseButton")
-    dom.outputBrowseButton = document.getElementById("outputBrowseButton")
-    dom.checkFfmpegButton = document.getElementById("checkFfmpegButton")
-    dom.chooseFfmpegButton = document.getElementById("chooseFfmpegButton")
-    dom.chooseFfprobeButton = document.getElementById("chooseFfprobeButton")
-    dom.generateButton = document.getElementById("generateButton")
-    dom.openOutputButton = document.getElementById("openOutputButton")
-    dom.clearLogButton = document.getElementById("clearLogButton")
-    dom.statusText = document.getElementById("statusText")
-    dom.statusPill = document.getElementById("statusPill")
-    dom.ffmpegSummary = document.getElementById("ffmpegSummary")
-    dom.progressBar = document.getElementById("progressBar")
-    dom.progressText = document.getElementById("progressText")
-    dom.generatedList = document.getElementById("generatedList")
-    dom.generatedCount = document.getElementById("generatedCount")
-    dom.logOutput = document.getElementById("logOutput")
+    [
+      "sourceVideo",
+      "outputFolder",
+      "videoTitle",
+      "splitMode",
+      "segmentLength",
+      "partCount",
+      "overlapSeconds",
+      "layoutMode",
+      "crf",
+      "captionSource",
+      "captionStylePreset",
+      "captionFontSize",
+      "captionVerticalPosition",
+      "srtFile",
+      "sourceBrowseButton",
+      "outputBrowseButton",
+      "srtBrowseButton",
+      "checkFfmpegButton",
+      "chooseFfmpegButton",
+      "chooseFfprobeButton",
+      "generateButton",
+      "openOutputButton",
+      "clearLogButton",
+      "statusText",
+      "statusPill",
+      "ffmpegSummary",
+      "videoInfoText",
+      "captionNote",
+      "segmentLengthField",
+      "partCountField",
+      "srtFileField",
+      "progressBar",
+      "progressText",
+      "generatedList",
+      "generatedCount",
+      "logOutput"
+    ].forEach((id) => {
+      dom[id] = document.getElementById(id)
+    })
   }
 
   function bindEvents() {
-    dom.inputBrowseButton.addEventListener("click", selectInputFolder)
+    dom.sourceBrowseButton.addEventListener("click", selectSourceVideo)
     dom.outputBrowseButton.addEventListener("click", selectOutputFolder)
+    dom.srtBrowseButton.addEventListener("click", selectSrtFile)
     dom.checkFfmpegButton.addEventListener("click", () => checkFfmpeg(true))
     dom.chooseFfmpegButton.addEventListener("click", chooseFfmpeg)
     dom.chooseFfprobeButton.addEventListener("click", chooseFfprobe)
-    dom.generateButton.addEventListener("click", generateClips)
+    dom.generateButton.addEventListener("click", generateParts)
     dom.openOutputButton.addEventListener("click", openOutputFolder)
     dom.clearLogButton.addEventListener("click", clearLog)
+    dom.splitMode.addEventListener("change", updateConditionalFields)
+    dom.captionSource.addEventListener("change", updateConditionalFields)
+    dom.sourceVideo.addEventListener("change", readSelectedVideoInfo)
+    dom.outputFolder.addEventListener("change", refreshGeneratedListFromOutput)
 
     getSettingsInputs().forEach((element) => {
       element.addEventListener("input", queueSaveSettings)
       element.addEventListener("change", queueSaveSettings)
     })
-
-    dom.outputFolder.addEventListener("change", refreshGeneratedListFromOutput)
   }
 
   function bindGenerationEvents() {
@@ -65,7 +85,7 @@
     api.onGenerationDone((result) => {
       generatedFiles = result.generatedFiles || generatedFiles
       renderGeneratedFiles()
-      setStatus(`Finished. Created ${generatedFiles.length} clip(s).`)
+      setStatus(`Finished. Created ${generatedFiles.length} video part(s).`)
       setProgress(100)
     })
     api.onGenerationError((message) => {
@@ -81,10 +101,12 @@
     try {
       const settings = await api.loadSettings()
       applySettings(settings)
+      updateConditionalFields()
       setStatus("Ready.")
       log("shortsCreator ready.")
-      log("Choose input and output folders, then generate silent H.264 b-roll clips.")
+      log("Choose one source video, an output folder, split settings, and captions if needed.")
       await checkFfmpeg(false)
+      await readSelectedVideoInfo()
       await refreshGeneratedListFromOutput()
     } catch (error) {
       setStatus("Could not load settings")
@@ -94,35 +116,56 @@
 
   function getSettingsInputs() {
     return [
-      dom.inputFolder,
+      dom.sourceVideo,
       dom.outputFolder,
-      dom.clipCount,
-      dom.clipLength,
-      dom.skipFirstSeconds,
-      dom.skipLastSeconds,
-      dom.randomizeStartTimes
+      dom.videoTitle,
+      dom.splitMode,
+      dom.segmentLength,
+      dom.partCount,
+      dom.overlapSeconds,
+      dom.layoutMode,
+      dom.crf,
+      dom.captionSource,
+      dom.captionStylePreset,
+      dom.captionFontSize,
+      dom.captionVerticalPosition,
+      dom.srtFile
     ]
   }
 
   function applySettings(settings) {
-    dom.inputFolder.value = settings.inputFolder || ""
+    dom.sourceVideo.value = settings.sourceVideo || ""
     dom.outputFolder.value = settings.outputFolder || ""
-    dom.clipCount.value = settings.clipCount || 30
-    dom.clipLength.value = settings.clipLength || 6
-    dom.skipFirstSeconds.value = Number.isFinite(settings.skipFirstSeconds) ? settings.skipFirstSeconds : 90
-    dom.skipLastSeconds.value = Number.isFinite(settings.skipLastSeconds) ? settings.skipLastSeconds : 90
-    dom.randomizeStartTimes.checked = Boolean(settings.randomizeStartTimes)
+    dom.videoTitle.value = settings.videoTitle || ""
+    dom.splitMode.value = settings.splitMode || "length"
+    dom.segmentLength.value = settings.segmentLength || 60
+    dom.partCount.value = settings.partCount || 5
+    dom.overlapSeconds.value = Number.isFinite(settings.overlapSeconds) ? settings.overlapSeconds : 5
+    dom.layoutMode.value = settings.layoutMode || "blurred"
+    dom.crf.value = Number.isFinite(settings.crf) ? settings.crf : 22
+    dom.captionSource.value = settings.captionSource || "none"
+    dom.captionStylePreset.value = settings.captionStylePreset || "tiktok"
+    dom.captionFontSize.value = settings.captionFontSize || 58
+    dom.captionVerticalPosition.value = settings.captionVerticalPosition || 1450
+    dom.srtFile.value = settings.srtFile || ""
   }
 
   function getSettings() {
     return {
-      inputFolder: dom.inputFolder.value.trim(),
+      sourceVideo: dom.sourceVideo.value.trim(),
       outputFolder: dom.outputFolder.value.trim(),
-      clipCount: Number(dom.clipCount.value),
-      clipLength: Number(dom.clipLength.value),
-      skipFirstSeconds: Number(dom.skipFirstSeconds.value),
-      skipLastSeconds: Number(dom.skipLastSeconds.value),
-      randomizeStartTimes: dom.randomizeStartTimes.checked
+      videoTitle: dom.videoTitle.value.trim(),
+      splitMode: dom.splitMode.value,
+      segmentLength: Number(dom.segmentLength.value),
+      partCount: Number(dom.partCount.value),
+      overlapSeconds: Number(dom.overlapSeconds.value),
+      layoutMode: dom.layoutMode.value,
+      crf: Number(dom.crf.value),
+      captionSource: dom.captionSource.value,
+      captionStylePreset: dom.captionStylePreset.value,
+      captionFontSize: Number(dom.captionFontSize.value),
+      captionVerticalPosition: Number(dom.captionVerticalPosition.value),
+      srtFile: dom.srtFile.value.trim()
     }
   }
 
@@ -137,12 +180,37 @@
     }, 180)
   }
 
-  async function selectInputFolder() {
-    const selectedFolder = await api.selectInputFolder(dom.inputFolder.value)
+  function updateConditionalFields() {
+    const splitByParts = dom.splitMode.value === "parts"
+    const useSrt = dom.captionSource.value === "srt"
+    const useAuto = dom.captionSource.value === "auto"
 
-    if (selectedFolder) {
-      dom.inputFolder.value = selectedFolder
-      queueSaveSettings()
+    dom.segmentLengthField.classList.toggle("muted-field", splitByParts)
+    dom.partCountField.classList.toggle("muted-field", !splitByParts)
+    dom.segmentLength.disabled = splitByParts
+    dom.partCount.disabled = !splitByParts
+    dom.srtFileField.classList.toggle("hidden", !useSrt)
+
+    if (useAuto) {
+      dom.captionNote.textContent = "Local Whisper-style transcription is prepared architecturally but not implemented in this version."
+    } else if (useSrt) {
+      dom.captionNote.textContent = "A full-video SRT file is sliced and offset for each generated part before burn-in."
+    } else {
+      dom.captionNote.textContent = "No captions will be burned in. The top title label is still added."
+    }
+  }
+
+  async function selectSourceVideo() {
+    try {
+      const selectedFile = await api.selectSourceVideo(dom.sourceVideo.value)
+
+      if (selectedFile) {
+        dom.sourceVideo.value = selectedFile
+        queueSaveSettings()
+        await readSelectedVideoInfo()
+      }
+    } catch (error) {
+      log(error.message, "error")
     }
   }
 
@@ -153,6 +221,15 @@
       dom.outputFolder.value = selectedFolder
       queueSaveSettings()
       await refreshGeneratedListFromOutput()
+    }
+  }
+
+  async function selectSrtFile() {
+    const selectedFile = await api.selectSrtFile(dom.srtFile.value)
+
+    if (selectedFile) {
+      dom.srtFile.value = selectedFile
+      queueSaveSettings()
     }
   }
 
@@ -203,15 +280,31 @@
     }
   }
 
-  async function generateClips() {
+  async function readSelectedVideoInfo() {
+    if (!dom.sourceVideo.value.trim()) {
+      dom.videoInfoText.textContent = "No source video selected."
+      return
+    }
+
+    try {
+      const info = await api.readVideoInfo(getSettings())
+      const duration = formatDuration(info.duration)
+      dom.videoInfoText.textContent = `${duration} · ${info.width}x${info.height} · video: ${info.videoCodec || "unknown"} · audio: ${info.hasAudio ? info.audioCodec || "yes" : "none"}`
+    } catch (error) {
+      dom.videoInfoText.textContent = "Video info unavailable. Check FFmpeg/ffprobe and the selected file."
+      log(error.message, "warning")
+    }
+  }
+
+  async function generateParts() {
     generatedFiles = []
     renderGeneratedFiles()
     setProgress(0)
     setStatus("Preparing generation...")
-    log("Starting clip generation...")
+    log("Starting video part generation...")
 
     try {
-      await api.generateClips(getSettings())
+      await api.generateParts(getSettings())
     } catch (error) {
       setStatus("Generation failed")
     }
@@ -244,24 +337,22 @@
   }
 
   function setGeneratingState(isGenerating) {
-    [
-      dom.inputFolder,
-      dom.outputFolder,
-      dom.clipCount,
-      dom.clipLength,
-      dom.skipFirstSeconds,
-      dom.skipLastSeconds,
-      dom.randomizeStartTimes,
-      dom.inputBrowseButton,
+    getSettingsInputs().concat([
+      dom.sourceBrowseButton,
       dom.outputBrowseButton,
+      dom.srtBrowseButton,
       dom.checkFfmpegButton,
       dom.chooseFfmpegButton,
       dom.chooseFfprobeButton,
       dom.generateButton,
       dom.openOutputButton
-    ].forEach((element) => {
+    ]).forEach((element) => {
       element.disabled = isGenerating
     })
+
+    if (!isGenerating) {
+      updateConditionalFields()
+    }
 
     dom.statusPill.textContent = isGenerating ? "Working" : "Ready"
   }
@@ -274,8 +365,8 @@
     const safePercent = Math.max(0, Math.min(100, Number(percent) || 0))
     dom.progressBar.style.width = `${safePercent}%`
 
-    if (progress && progress.total) {
-      dom.progressText.textContent = `${safePercent}% · ${progress.current} of ${progress.total}`
+    if (progress && progress.totalParts) {
+      dom.progressText.textContent = `${safePercent}% · ${progress.currentPart || progress.current} of ${progress.totalParts}`
       return
     }
 
@@ -310,6 +401,19 @@
   function clearLog() {
     dom.logOutput.innerHTML = ""
     setStatus("Log cleared.")
+  }
+
+  function formatDuration(duration) {
+    const totalSeconds = Math.max(0, Math.round(Number(duration) || 0))
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    if (hours) {
+      return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    }
+
+    return `${minutes}:${String(seconds).padStart(2, "0")}`
   }
 
   document.addEventListener("DOMContentLoaded", init)

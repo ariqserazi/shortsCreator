@@ -16,11 +16,15 @@ const requiredFiles = [
   "src/renderer/index.html",
   "src/renderer/styles.css",
   "src/renderer/app.js",
-  "src/core/clipGenerator.js",
+  "src/core/captionGenerator.js",
   "src/core/ffmpegTools.js",
+  "src/core/filenameUtils.js",
+  "src/core/segmentPlanner.js",
   "src/core/settingsStore.js",
+  "src/core/subtitleTools.js",
   "src/core/validation.js",
-  "src/core/videoScanner.js",
+  "src/core/videoInfo.js",
+  "src/core/videoProcessor.js",
   "src/assets/icons/README.md"
 ]
 
@@ -71,11 +75,15 @@ const sourceFilesToCheck = [
   "src/main/preload.js",
   "src/main/ipcHandlers.js",
   "src/renderer/app.js",
-  "src/core/clipGenerator.js",
+  "src/core/captionGenerator.js",
   "src/core/ffmpegTools.js",
+  "src/core/filenameUtils.js",
+  "src/core/segmentPlanner.js",
   "src/core/settingsStore.js",
+  "src/core/subtitleTools.js",
   "src/core/validation.js",
-  "src/core/videoScanner.js"
+  "src/core/videoInfo.js",
+  "src/core/videoProcessor.js"
 ]
 
 for (const relativeFile of sourceFilesToCheck) {
