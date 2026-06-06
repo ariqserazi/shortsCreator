@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;" />
+    <title>shortsCreator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Desktop b-roll generator</p>
+          <h1>shortsCreator</h1>
+          <p class="header-copy">Generate silent H.264 clips from local source videos.</p>
+        </div>
+        <div class="status-pill" id="statusPill">Ready</div>
+      </header>
+
+      <section class="workspace-grid">
+        <div class="panel controls-panel">
+          <div class="panel-header">
+            <h2>Folders</h2>
+            <p>Source videos are only read. Generated clips are written to the output folder.</p>
+          </div>
+
+          <div class="field-stack">
+            <label class="field">
+              <span>Input Folder</span>
+              <div class="path-row">
+                <input id="inputFolder" type="text" placeholder="Choose a folder with videos" />
+                <button id="inputBrowseButton" type="button">Browse</button>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Output Folder</span>
+              <div class="path-row">
+                <input id="outputFolder" type="text" placeholder="Choose where clips should be saved" />
+                <button id="outputBrowseButton" type="button">Browse</button>
+              </div>
+            </label>
+          </div>
+
+          <div class="panel-header compact">
+            <h2>Clip Settings</h2>
+          </div>
+
+          <div class="settings-grid">
+            <label class="field">
+              <span>Clip Count</span>
+              <input id="clipCount" type="number" min="1" step="1" />
+            </label>
+            <label class="field">
+              <span>Clip Length</span>
+              <input id="clipLength" type="number" min="1" step="1" />
+            </label>
+            <label class="field">
+              <span>Skip First Seconds</span>
+              <input id="skipFirstSeconds" type="number" min="0" step="1" />
+            </label>
+            <label class="field">
+              <span>Skip Last Seconds</span>
+              <input id="skipLastSeconds" type="number" min="0" step="1" />
+            </label>
+          </div>
+
+          <label class="toggle-card" for="randomizeStartTimes">
+            <input id="randomizeStartTimes" type="checkbox" />
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>
+              <strong>Randomize start times</strong>
+              <small>Turn off for sequential clips through each source video.</small>
+            </span>
+          </label>
+
+          <div class="panel-header compact">
+            <h2>FFmpeg</h2>
+            <p id="ffmpegSummary">Checking ffmpeg and ffprobe...</p>
+          </div>
+
+          <div class="tool-grid">
+            <button id="checkFfmpegButton" type="button">Check FFmpeg</button>
+            <button id="chooseFfmpegButton" type="button">Choose ffmpeg</button>
+            <button id="chooseFfprobeButton" type="button">Choose ffprobe</button>
+          </div>
+
+          <div class="action-row">
+            <button id="generateButton" class="primary-button" type="button">Generate Clips</button>
+            <button id="openOutputButton" type="button">Open Output Folder</button>
+            <button id="clearLogButton" type="button">Clear Log</button>
+          </div>
+        </div>
+
+        <div class="panel output-panel">
+          <div class="panel-header">
+            <h2>Progress</h2>
+            <p id="statusText">Ready.</p>
+          </div>
+
+          <div class="progress-shell" aria-label="Generation progress">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <div id="progressText" class="progress-text">0%</div>
+
+          <div class="results-header">
+            <h2>Generated Clips</h2>
+            <span id="generatedCount">0 files</span>
+          </div>
+          <ol id="generatedList" class="generated-list"></ol>
+
+          <div class="log-header">
+            <h2>Live Log</h2>
+          </div>
+          <div id="logOutput" class="log-output" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

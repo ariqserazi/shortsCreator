@@ -1,0 +1,65 @@
+{
+  "name": "shortscreator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A cross-platform desktop app for generating silent H.264 b-roll clips with ffmpeg.",
+  "main": "src/main/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "build": "electron-builder --dir -c.electronDist=node_modules/electron/dist",
+    "build:mac": "electron-builder --mac dmg -c.electronDist=node_modules/electron/dist",
+    "build:win": "electron-builder --win nsis --x64",
+    "dist": "electron-builder",
+    "validate": "node scripts/validate.mjs"
+  },
+  "keywords": [
+    "electron",
+    "ffmpeg",
+    "video",
+    "broll",
+    "clips"
+  ],
+  "author": "Ariq Serazi",
+  "license": "MIT"
+  ,
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.ariqserazi.shortscreator",
+    "productName": "shortsCreator",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "README.md",
+      "LICENSE"
+    ],
+    "mac": {
+      "target": "dmg",
+      "identity": null,
+      "category": "public.app-category.video",
+      "artifactName": "shortsCreator-${version}.${ext}"
+    },
+    "dmg": {
+      "title": "shortsCreator ${version}"
+    },
+    "win": {
+      "target": "nsis",
+      "artifactName": "shortsCreator-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "shortsCreator"
+    }
+  }
+}

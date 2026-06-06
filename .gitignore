@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Electron/electron-builder output
+dist/
+release/
+out/
+.cache/
+*.dmg
+*.exe
+*.AppImage
+*.snap
+*.deb
+*.rpm
+*.blockmap
+latest*.yml
+builder-debug.yml
+
+# Logs and diagnostics
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local generated media and test clips
+clips/
+output/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.m4v
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
