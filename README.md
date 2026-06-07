@@ -1,115 +1,119 @@
 # shortsCreator
 
-shortsCreator is a cross-platform desktop app for turning one long anime video essay into multiple vertical short-form videos for TikTok, YouTube Shorts, Instagram Reels, and similar platforms.
+shortsCreator is a desktop app for turning one long video into numbered short-form parts for TikTok, YouTube Shorts, Instagram Reels, and similar platforms.
 
-It is a normal Electron desktop app, not a Premiere Pro extension and not a browser-only localhost tool. End users download an installer from GitHub Releases, install shortsCreator, open it like any other app, choose a long video, and generate numbered vertical parts.
+It is a normal Electron app. End users install it, open it, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
 
-## Screenshots
+## Current Features
 
-Screenshots will be added after the first packaged UI pass is manually captured on macOS and Windows.
+- Reads one source video file: `.mp4`, `.mov`, `.mkv`, `.avi`, or `.m4v`
+- Splits by segment length or by desired number of parts
+- Supports overlap/rewind between parts
+- Generates numbered output files like `my-video-part-01.mp4`
+- Avoids overwriting existing output files by creating unique names
+- Creates vertical `720x1280` or `1080x1920` styled videos
+- Includes a Cut Only mode for extremely fast stream-copy splitting
+- Supports crop, black background, and blurred background layouts
+- Adds an optional top title label: `{Video Title} - Part {X}`
+- Lets you choose title font family and highlight opacity
+- Loads installed system fonts as title font suggestions
+- Supports no captions or burning an existing full-video `.srt` file
+- Supports TikTok, simple, and boxed caption styles
+- Has render presets for Fast, Balanced, High Quality, and Cut Only
+- Supports Auto, Hardware, and Software encoder modes
+- Uses hardware H.264 encoders when available in Auto/Hardware mode
+- Copies audio first when possible and retries with AAC if audio copy fails
+- Shows FFmpeg progress, speed, and live logs while rendering
+- Includes a 10-second speed test render button
+- Bundles FFmpeg/FFprobe for packaged macOS and Windows builds
 
-## What It Does
+Automatic local transcription is planned but not implemented yet. The app does not fake captions and does not use paid APIs or cloud transcription services.
 
-- reads one source video file: `.mp4`, `.mov`, `.mkv`, `.avi`, or `.m4v`
-- converts each output part to vertical 9:16 video at `720x1280` or `1080x1920`
-- creates `.mp4` files with H.264 video, AAC audio, and `yuv420p`
-- splits by segment length or by desired number of parts
-- supports intentional overlap/rewind between parts
-- adds a top title label in the format `{Video Title} - Part {X}`
-- lets you set the top title font family and highlight opacity
-- loads installed system fonts as title font suggestions
-- includes an encoder speed preset; `ultrafast` is the default for practical desktop rendering
-- supports no captions or burning an existing full-video `.srt` file
-- prepares architecture for future local Whisper-style caption generation
-- uses secure Electron IPC with `contextIsolation: true`, `nodeIntegration: false`, and a preload bridge
-- never modifies or deletes the source video
+## Install The App
 
-## Supported Platforms
-
-- macOS
-- Windows
-
-Expected release artifacts:
-
-- macOS: `shortsCreator.app` and `shortsCreator-x.x.x.dmg`
-- Windows: `shortsCreator.exe` and `shortsCreator-Setup-x.x.x.exe`
-
-## End User Installation
-
-End users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, localhost, or a cloned repository.
+### macOS Users
 
 1. Go to [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
-2. Download the installer for your operating system.
-3. Install shortsCreator.
-4. Open shortsCreator like a normal desktop app.
-5. Select one long video essay and generate vertical parts.
+2. Download the macOS `.dmg`, for example `shortsCreator-1.0.0.dmg`.
+3. Open the `.dmg`.
+4. Open `shortsCreator.app`.
 
-macOS users should download `shortsCreator-x.x.x.dmg`.
+The current development build is unsigned, so macOS may show a Gatekeeper warning. If needed, right-click the app, choose `Open`, then confirm.
 
-Windows users should download `shortsCreator-Setup-x.x.x.exe`.
+### Windows Users
 
-## FFmpeg Setup
+1. Go to [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
+2. Download the Windows installer, for example `shortsCreator-Setup-1.0.0.exe`.
+3. Run the installer.
+4. Open shortsCreator from the Start Menu or desktop shortcut.
 
-shortsCreator needs both `ffmpeg` and `ffprobe` to inspect and render video. Packaged releases include bundled FFmpeg and FFprobe binaries for the supported installer targets, so normal end users should not need to install FFmpeg separately.
+The current development build is unsigned, so Windows may show a SmartScreen warning.
 
-Detection order:
+### Do End Users Need Node Or FFmpeg?
 
-1. saved custom `ffmpeg` and `ffprobe` paths
-2. bundled app binaries
-3. tools available on `PATH`
-4. common macOS paths:
-   - `/opt/homebrew/bin/ffmpeg`
-   - `/opt/homebrew/bin/ffprobe`
-   - `/usr/local/bin/ffmpeg`
-   - `/usr/local/bin/ffprobe`
-5. common Windows paths:
-   - `C:\ffmpeg\bin\ffmpeg.exe`
-   - `C:\ffmpeg\bin\ffprobe.exe`
-   - `C:\Program Files\ffmpeg\bin\ffmpeg.exe`
-   - `C:\Program Files\ffmpeg\bin\ffprobe.exe`
+Normal end users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, or a cloned repository.
 
-If detection fails, use `Choose ffmpeg` and `Choose ffprobe` in the app. shortsCreator saves those paths for future launches.
+Packaged releases include FFmpeg and FFprobe binaries. If bundled FFmpeg is missing or you want to use a custom FFmpeg build, the app also lets you choose `ffmpeg` and `ffprobe` manually.
 
-The app requires an FFmpeg build with subtitle/text overlay support because every generated part includes a top label like `{Video Title} - Part 1`. The bundled FFmpeg builds include that support. If you choose a custom FFmpeg path, make sure it has `subtitles`, `ass`, or `drawtext` filters.
-
-The title font setting uses a font family name. The app loads installed system fonts as suggestions in the title font field. The selected font must be available to the operating system/fontconfig used by FFmpeg; otherwise FFmpeg/libass may fall back to a default font.
-
-### macOS FFmpeg Install
-
-```bash
-brew install ffmpeg
-```
-
-### Windows FFmpeg Install
-
-```powershell
-winget install Gyan.FFmpeg
-```
-
-You can also download FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html), then select `ffmpeg.exe` and `ffprobe.exe` manually in shortsCreator.
-
-## How To Use
+## Quick Start
 
 1. Open shortsCreator.
-2. Choose a source video file.
+2. Choose a source video.
 3. Choose an output folder.
-4. Enter the video title.
-5. Choose split mode: segment length or number of parts.
-6. Set overlap/rewind seconds.
-7. Choose a 9:16 layout mode.
-8. Choose caption settings.
-9. Click `Generate Parts`.
-10. Use `Open Output Folder` to view the generated files.
+4. Enter a video title.
+5. Pick a render preset.
+6. Choose split mode: segment length or number of parts.
+7. Set overlap/rewind seconds.
+8. Adjust layout, encoder, title, or caption settings if needed.
+9. Optional: click `Render 10-second speed test`.
+10. Click `Generate Parts`.
+11. Click `Open Output Folder` to view generated files.
 
-Output filenames are sanitized and numbered, for example:
+## Render Presets
 
-- `best-romance-anime-2026-part-01.mp4`
-- `best-romance-anime-2026-part-02.mp4`
-- `best-romance-anime-2026-part-03.mp4`
+### Fast
 
-If a matching file already exists, shortsCreator writes a unique numbered variant instead of overwriting unrelated files.
+Best default for quick styled Shorts/Reels/TikToks.
 
-## Split Modes
+- Default output: `720x1280`
+- Default layout: Crop to fill
+- Encoder mode: Auto / Recommended
+- Prefers hardware H.264 when available
+- Uses faster scaling for speed
+- Keeps title and captions optional
+
+### Balanced
+
+Better quality while still preferring hardware acceleration.
+
+- Default output: `1080x1920`
+- Default layout: Crop to fill
+- Encoder mode: Auto / Recommended
+- Allows title labels and captions
+- Allows blurred background, but blur is slower
+
+### High Quality
+
+Best when quality/compression matters more than speed.
+
+- Default output: `1080x1920`
+- Uses software `libx264`
+- Uses CRF-based quality
+- Slower than Fast and Balanced
+
+### Cut Only / No Styling
+
+Fastest possible splitting mode.
+
+- No 9:16 conversion
+- No crop, scale, blur, title label, or captions
+- Keeps the original aspect ratio
+- Uses FFmpeg stream copy: `-c copy`
+- Useful when you only want to split a source video quickly
+
+Cut Only does not create vertical TikTok/Shorts/Reels layout.
+
+## Split Settings
 
 ### Split By Segment Length
 
@@ -128,7 +132,7 @@ The final part is trimmed to the end of the source video when needed.
 
 You choose how many parts you want. shortsCreator calculates the segment length from the source duration and overlap so the planned parts cover the video.
 
-## Overlap / Rewind
+### Overlap / Rewind
 
 Overlap intentionally starts each part a few seconds before the previous part ended. This helps each new part feel less abrupt when watched as a series.
 
@@ -140,23 +144,38 @@ Rules:
 
 ## Layout Modes
 
-The Fast preset defaults to `720x1280` and `Crop to fill`. Balanced and High Quality default to `1080x1920`. Cut Only skips layout work completely and keeps the source aspect ratio.
-
-### Blurred Background
-
-A scaled, blurred copy fills the selected output canvas while the original video is centered on top. This works well for horizontal anime/video essay footage, but it is slower than crop or black background.
-
 ### Crop To Fill
 
-The video is cropped and scaled to fill the selected vertical output size. This is the fastest styled layout and is useful for center-focused content.
+The video is center-cropped and scaled to fill the selected vertical output size. This is the fastest styled layout and works well for center-focused content.
 
 ### Black Background
 
-The original video is fit inside the selected vertical output size with a black background. This is useful when you do not want blur.
+The original video is fit inside the selected vertical output size with a black background. This avoids cropping.
 
-### Cut Only / No Styling
+### Blurred Background
 
-Cut Only uses stream copy with no filters, no title label, no captions, and no 9:16 conversion. It is the fastest splitter mode, but the output keeps the original source layout.
+A scaled, blurred copy fills the selected output canvas while the original video is centered on top. It can look nicer for horizontal footage, but it is slower than crop or black background.
+
+## Output Settings
+
+### Output Resolution
+
+- `720x1280`: faster, recommended for Fast preset
+- `1080x1920`: higher resolution, slower
+
+### Title Label
+
+The `Show Title Label` setting controls the top title overlay. When enabled, each part gets:
+
+`{Video Title} - Part {X}`
+
+Title settings include:
+
+- font family
+- title highlight opacity
+- installed system font suggestions
+
+If title label and captions are both off, shortsCreator skips the ASS/subtitle overlay filter.
 
 ## Captions
 
@@ -166,7 +185,7 @@ Caption source options:
 - `Use SRT file`
 - `Auto-generate locally (future)`
 
-The current working version supports no captions and importing an existing `.srt` file. The SRT should be timed against the full source video. shortsCreator slices and offsets subtitle cues for each generated part before burning them into the output.
+SRT captions should be timed against the full source video. shortsCreator slices and offsets subtitle cues for each generated part before burning them into the output.
 
 Caption style settings include:
 
@@ -176,26 +195,105 @@ Caption style settings include:
 - font size
 - vertical position
 
-Local automatic captions are not faked. The `captionGenerator.js` module exists as the integration point for a future local Whisper-style tool such as `whisper.cpp` or `faster-whisper`, but automatic transcription is not fully implemented yet and does not use paid APIs or cloud services.
+Captions are disabled in Cut Only mode because Cut Only uses stream copy and does not run video filters.
 
-## Developer Setup
+## Encoder Settings
+
+### Encoder Mode
+
+- `Auto / Recommended`: chooses a supported hardware H.264 encoder when available, otherwise falls back to software
+- `Require hardware H.264`: fails if a supported hardware encoder is not available
+- `Software x264`: uses `libx264`
+
+### Hardware Encoder Preference
+
+On macOS, shortsCreator prefers:
+
+- `h264_videotoolbox`
+
+On Windows, shortsCreator tries:
+
+1. `h264_nvenc`
+2. `h264_qsv`
+3. `h264_amf`
+4. `libx264` fallback
+
+The app detects encoders by running:
+
+```bash
+ffmpeg -hide_banner -encoders
+```
+
+### Software Encoder Speed
+
+The software encoder speed setting applies to `libx264`. Faster presets render more quickly but can create larger files.
+
+### Parallel Render Jobs
+
+Parallel jobs can be set to:
+
+- `1`
+- `2`
+
+Use `2` on faster machines to render two parts at once. If you see hardware encoder errors, set this back to `1`.
+
+## Speed Test
+
+Click `Render 10-second speed test` to render a 10-second sample with the current settings.
+
+The log reports elapsed time and estimated realtime speed, for example:
+
+`10-second test completed in 3.2 seconds. Estimated speed: 3.1x realtime.`
+
+Use this before rendering a long video if you are trying new settings.
+
+## FFmpeg And FFprobe
+
+shortsCreator needs both FFmpeg and FFprobe.
+
+Detection order:
+
+1. saved custom `ffmpeg` and `ffprobe` paths
+2. bundled app binaries
+3. tools available on `PATH`
+4. common macOS paths:
+   - `/opt/homebrew/bin/ffmpeg`
+   - `/opt/homebrew/bin/ffprobe`
+   - `/usr/local/bin/ffmpeg`
+   - `/usr/local/bin/ffprobe`
+5. common Windows paths:
+   - `C:\ffmpeg\bin\ffmpeg.exe`
+   - `C:\ffmpeg\bin\ffprobe.exe`
+   - `C:\Program Files\ffmpeg\bin\ffmpeg.exe`
+   - `C:\Program Files\ffmpeg\bin\ffprobe.exe`
+
+Use `Check FFmpeg` in the app to see what was detected.
+
+Use `Choose ffmpeg` and `Choose ffprobe` if you want to select custom binaries manually.
+
+### Bundled Vendor Files
+
+The project expects platform-specific FFmpeg files in:
+
+- macOS FFmpeg: `vendor/ffmpeg/darwin-arm64/ffmpeg`
+- macOS FFprobe: `vendor/ffprobe/darwin-arm64/ffprobe`
+- Windows FFmpeg: `vendor/ffmpeg/win32-x64/ffmpeg.exe`
+- Windows FFprobe: `vendor/ffprobe/win32-x64/ffprobe.exe`
+
+macOS will not use the Windows `.exe`, and Windows will not use the macOS binary. Keeping both sets in the repo is fine, though it can make installer builds larger.
+
+## Build Installers From Source
 
 Developer requirements:
 
-- Node.js
+- Node.js LTS
 - npm
-- FFmpeg and FFprobe for video generation testing
+- this repository cloned locally
 
 Install dependencies:
 
 ```bash
 npm install
-```
-
-Run the desktop app in development:
-
-```bash
-npm run dev
 ```
 
 Validate project structure and JavaScript syntax:
@@ -204,14 +302,47 @@ Validate project structure and JavaScript syntax:
 npm run validate
 ```
 
-## Build Installers
+Run the desktop app in development:
 
-Quick launcher files are included at the repo root:
+```bash
+npm run dev
+```
 
-- Windows: double-click `build-windows-exe.bat` to create the `.exe` installer.
-- macOS: double-click `build-mac-dmg.command` to create the `.dmg` installer.
+### Easy Build Launchers
 
-Both launchers install dependencies with `npm install` if `node_modules` is missing, then write output to `dist/`.
+Quick launcher files are included at the repo root.
+
+Windows:
+
+```text
+build-windows-exe.bat
+```
+
+Double-click it to build the Windows installer.
+
+Expected output:
+
+```text
+dist/shortsCreator-Setup-1.0.0.exe
+```
+
+macOS:
+
+```text
+build-mac-dmg.command
+```
+
+Double-click it to build the macOS DMG. The script opens the `dist/` folder when it finishes.
+
+Expected output:
+
+```text
+dist/shortsCreator-1.0.0.dmg
+```
+
+Both launchers run `npm install` first if `node_modules` is missing.
+
+### Manual Build Commands
 
 Create an unpacked local build:
 
@@ -239,9 +370,9 @@ npm run dist
 
 Installer output is written to `dist/`.
 
-macOS installers are best built on macOS. Windows installers are best built on Windows or CI. Do not assume one OS can perfectly build and sign every platform.
+macOS installers are best built on macOS. Windows installers are best built on Windows or Windows CI. Do not assume one OS can perfectly build and sign every platform.
 
-## GitHub Releases
+## Release Flow
 
 Distribution page:
 
@@ -250,15 +381,16 @@ Distribution page:
 Recommended release flow:
 
 1. Run `npm install`.
-2. On macOS, run `npm run build:mac`.
-3. On Windows or Windows CI, run `npm run build:win`.
-4. Upload generated files from `dist/` to a GitHub Release.
-5. Users download the correct installer for their OS.
+2. Run `npm run validate`.
+3. On macOS, run `build-mac-dmg.command` or `npm run build:mac`.
+4. On Windows, run `build-windows-exe.bat` or `npm run build:win`.
+5. Upload generated files from `dist/` to a GitHub Release.
+6. Users download the correct installer for their OS.
 
 Expected upload names:
 
-- `shortsCreator-x.x.x.dmg`
-- `shortsCreator-Setup-x.x.x.exe`
+- `shortsCreator-1.0.0.dmg`
+- `shortsCreator-Setup-1.0.0.exe`
 
 ## Unsigned App Warnings
 
@@ -276,14 +408,34 @@ Production releases should eventually use:
 
 ### FFmpeg Is Missing
 
-- Click `Check FFmpeg` in shortsCreator.
-- Install FFmpeg with Homebrew, winget, Chocolatey, or a downloaded build.
-- Use `Choose ffmpeg` and `Choose ffprobe` to select the binaries manually.
-- Confirm both tools come from the same FFmpeg install.
+- Click `Check FFmpeg`.
+- Confirm the bundled `vendor/` files exist for your platform.
+- Install FFmpeg manually with Homebrew, winget, Chocolatey, or a downloaded build.
+- Use `Choose ffmpeg` and `Choose ffprobe` to select binaries manually.
 
-### FFmpeg Fails On Captions
+### FFmpeg Fails On Title Or Captions
 
-The current caption renderer uses FFmpeg subtitle/ASS support. Most standard FFmpeg builds include this. If your build does not, install a full FFmpeg build and select it manually.
+Styled renders with title labels or burned captions need FFmpeg `subtitles` or `ass` filter support. The bundled FFmpeg builds include this. If a custom FFmpeg build does not, install/select a fuller FFmpeg build or disable title/captions.
+
+### Rendering Is Slow
+
+For faster generation:
+
+- use `Render Preset: Fast`
+- use `Output Resolution: 720x1280`
+- use `Layout: Crop to fill`
+- use `Encoder Mode: Auto / Recommended`
+- try `Parallel Render Jobs: 2`
+- turn captions off unless you need burned subtitles
+- use `Cut Only / No Styling` when you only need quick splitting and do not need vertical output
+
+Blurred background is slower because it creates a background image layer and extra scaling/blur work.
+
+If speed suddenly becomes much worse, make sure old shortsCreator windows/helper processes are not still running.
+
+### Cut Only Is Not Vertical
+
+That is expected. Cut Only keeps the original source layout because it uses stream copy and avoids all filters.
 
 ### No Video Parts Were Generated
 
@@ -292,24 +444,6 @@ The current caption renderer uses FFmpeg subtitle/ASS support. Most standard FFm
 - Confirm the video title is not empty.
 - Confirm overlap is less than segment length.
 - Read the live log for FFmpeg errors.
-
-### Rendering Is Slow
-
-shortsCreator re-encodes each part to vertical H.264. Blurred background is more expensive than crop or black background because it creates both a blurred background layer and a foreground layer.
-
-For faster generation:
-
-- use `Render Preset: Fast`
-- use `Output Size: 720x1280`
-- try `Encoder Method: Auto hardware if available` or `Require hardware H.264`; some files are still faster with software x264
-- try `Parallel Render Jobs: 2` on machines with enough CPU/GPU headroom
-- use `Software Encoder Speed: Ultrafast` when using software x264
-- use `Black background` or `Crop to fill` when blur is not needed
-- use a higher CRF such as `23` or `24` for faster/smaller output
-- keep captions off unless you need burned subtitles
-- use `Cut Only / No Styling` when you only need fast splitting and do not need vertical Shorts output
-
-The live log prints how long each generated part took.
 
 ### Automatic Captions Do Not Run
 
