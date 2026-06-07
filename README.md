@@ -4,6 +4,47 @@ shortsCreator is a desktop app for turning one long video into numbered short-fo
 
 It is a normal Electron app. End users install it, open it, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
 
+## Easy Installation
+
+### Download The App
+
+End users should download the installer for their operating system from [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
+
+- macOS: download `shortsCreator-1.0.0.dmg`
+- Windows: download `shortsCreator-Setup-1.0.0.exe`
+
+Normal end users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, or a cloned repository.
+
+### Build An Installer From This Repo
+
+If you cloned the repo and want to create an installer yourself, use the launcher file for your operating system.
+
+Windows:
+
+```text
+build-windows-exe.bat
+```
+
+Double-click it to build:
+
+```text
+dist/shortsCreator-Setup-1.0.0.exe
+```
+
+macOS:
+
+```text
+build-mac-dmg.command
+```
+
+Double-click it to build:
+
+```text
+dist/shortsCreator-1.0.0.dmg
+```
+
+Both launchers run `npm install` first if `node_modules` is missing. The macOS launcher opens the `dist/` folder when the build finishes.
+
 ## Current Features
 
 - Reads one source video file: `.mp4`, `.mov`, `.mkv`, `.avi`, or `.m4v`
@@ -307,40 +348,6 @@ Run the desktop app in development:
 ```bash
 npm run dev
 ```
-
-### Easy Build Launchers
-
-Quick launcher files are included at the repo root.
-
-Windows:
-
-```text
-build-windows-exe.bat
-```
-
-Double-click it to build the Windows installer.
-
-Expected output:
-
-```text
-dist/shortsCreator-Setup-1.0.0.exe
-```
-
-macOS:
-
-```text
-build-mac-dmg.command
-```
-
-Double-click it to build the macOS DMG. The script opens the `dist/` folder when it finishes.
-
-Expected output:
-
-```text
-dist/shortsCreator-1.0.0.dmg
-```
-
-Both launchers run `npm install` first if `node_modules` is missing.
 
 ### Manual Build Commands
 
