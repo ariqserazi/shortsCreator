@@ -206,6 +206,13 @@ npm run validate
 
 ## Build Installers
 
+Quick launcher files are included at the repo root:
+
+- Windows: double-click `build-windows-exe.bat` to create the `.exe` installer.
+- macOS: double-click `build-mac-dmg.command` to create the `.dmg` installer.
+
+Both launchers install dependencies with `npm install` if `node_modules` is missing, then write output to `dist/`.
+
 Create an unpacked local build:
 
 ```bash
