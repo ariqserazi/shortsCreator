@@ -22,10 +22,16 @@ const requiredFiles = [
   "src/core/segmentPlanner.js",
   "src/core/settingsStore.js",
   "src/core/subtitleTools.js",
+  "src/core/systemFonts.js",
   "src/core/validation.js",
   "src/core/videoInfo.js",
   "src/core/videoProcessor.js",
-  "src/assets/icons/README.md"
+  "src/assets/icons/README.md",
+  "vendor/README.md",
+  "vendor/ffmpeg/darwin-arm64/ffmpeg",
+  "vendor/ffmpeg/win32-x64/ffmpeg.exe",
+  "vendor/ffprobe/darwin-arm64/ffprobe",
+  "vendor/ffprobe/win32-x64/ffprobe.exe"
 ]
 
 const removedPaths = [
@@ -81,6 +87,7 @@ const sourceFilesToCheck = [
   "src/core/segmentPlanner.js",
   "src/core/settingsStore.js",
   "src/core/subtitleTools.js",
+  "src/core/systemFonts.js",
   "src/core/validation.js",
   "src/core/videoInfo.js",
   "src/core/videoProcessor.js"

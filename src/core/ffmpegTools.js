@@ -5,13 +5,48 @@ const path = require("node:path")
 const { execFile } = require("node:child_process")
 
 const INSTALL_HELP = [
-  "FFmpeg and ffprobe are required to generate video parts.",
+  "FFmpeg and ffprobe are required to generate video parts. shortsCreator includes bundled FFmpeg tools for packaged builds.",
   "",
+  "If the bundled tools are unavailable for your platform, install FFmpeg manually.",
   "macOS: install FFmpeg with Homebrew, then run: brew install ffmpeg",
   "Windows: download FFmpeg from https://ffmpeg.org/download.html or install it with winget/chocolatey.",
   "",
   "You can also choose ffmpeg and ffprobe manually in shortsCreator. The app will save those paths for future launches."
 ].join("\n")
+
+const OVERLAY_HELP = [
+  "FFmpeg and ffprobe were found, but this FFmpeg build is missing filters required for the selected render settings.",
+  "",
+  "No-caption jobs need standard scale/overlay filters. SRT caption jobs also need subtitles or ass filter support.",
+  "",
+  "Use the bundled FFmpeg, or install a fuller FFmpeg build and choose that ffmpeg manually in shortsCreator."
+].join("\n")
+
+function getPlatformArchKey() {
+  if (process.platform === "darwin" && process.arch === "arm64") {
+    return "darwin-arm64"
+  }
+
+  if (process.platform === "win32" && process.arch === "x64") {
+    return "win32-x64"
+  }
+
+  return `${process.platform}-${process.arch}`
+}
+
+function getBundledToolPaths(toolName) {
+  const platformArch = getPlatformArchKey()
+  const executableName = process.platform === "win32" ? `${toolName}.exe` : toolName
+  const candidates = []
+
+  if (process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, "vendor", toolName, platformArch, executableName))
+  }
+
+  candidates.push(path.join(__dirname, "..", "..", "vendor", toolName, platformArch, executableName))
+
+  return Array.from(new Set(candidates))
+}
 
 function getToolCandidates(toolName, savedPath) {
   const executableName = process.platform === "win32" ? `${toolName}.exe` : toolName
@@ -21,6 +56,13 @@ function getToolCandidates(toolName, savedPath) {
     candidates.push({
       path: savedPath,
       source: "saved"
+    })
+  }
+
+  for (const bundledPath of getBundledToolPaths(toolName)) {
+    candidates.push({
+      path: bundledPath,
+      source: "bundled"
     })
   }
 
@@ -107,8 +149,30 @@ async function resolveToolPath(toolName, savedPath) {
   return null
 }
 
+async function resolveFfmpegPath(savedPath, options = {}) {
+  const candidates = getToolCandidates("ffmpeg", savedPath)
+
+  for (const candidate of candidates) {
+    if (await isRunnableTool(candidate.path)) {
+      const hasOverlay = await hasFfmpegOverlay(candidate.path)
+      const overlayFilter = await getFfmpegOverlayFilter(candidate.path)
+
+      if (hasOverlay && (!options.requireCaptionOverlay || overlayFilter)) {
+        return Object.assign({}, candidate, {
+          hasOverlay,
+          overlayFilter
+        })
+      }
+    }
+  }
+
+  return null
+}
+
 async function detectFfmpegTools(savedPaths = {}) {
-  const ffmpeg = await resolveToolPath("ffmpeg", savedPaths.ffmpegPath)
+  const ffmpeg = await resolveFfmpegPath(savedPaths.ffmpegPath, {
+    requireCaptionOverlay: savedPaths.captionSource === "srt"
+  })
   const ffprobe = await resolveToolPath("ffprobe", savedPaths.ffprobePath)
   const ok = Boolean(ffmpeg && ffprobe)
 
@@ -118,9 +182,13 @@ async function detectFfmpegTools(savedPaths = {}) {
     ffprobePath: ffprobe ? ffprobe.path : "",
     ffmpegSource: ffmpeg ? ffmpeg.source : "",
     ffprobeSource: ffprobe ? ffprobe.source : "",
+    hasOverlay: ffmpeg ? ffmpeg.hasOverlay : false,
+    overlayFilter: ffmpeg ? ffmpeg.overlayFilter : "",
     message: ok
-      ? `Using ffmpeg: ${ffmpeg.path}\nUsing ffprobe: ${ffprobe.path}`
-      : INSTALL_HELP
+      ? `Using ffmpeg: ${ffmpeg.path}\nUsing ffprobe: ${ffprobe.path}\nOverlay filter: ${ffmpeg.overlayFilter}`
+      : ffprobe
+        ? OVERLAY_HELP
+        : INSTALL_HELP
   }
 }
 
@@ -160,18 +228,59 @@ async function getFfmpegFilters(ffmpegPath) {
   return String(result.stdout || result.stderr || "")
 }
 
+async function getFfmpegEncoders(ffmpegPath) {
+  const result = await execFileAsync(ffmpegPath, [
+    "-hide_banner",
+    "-encoders"
+  ], {
+    cwd: process.cwd(),
+    maxBuffer: 1024 * 1024 * 4
+  })
+
+  return String(result.stdout || result.stderr || "")
+}
+
 async function getFfmpegOverlayFilter(ffmpegPath) {
   const filters = await getFfmpegFilters(ffmpegPath)
 
-  if (/(^|\n)\s*\S+\s+subtitles\s+/m.test(filters)) {
+  if (hasFfmpegFilter(filters, "subtitles")) {
     return "subtitles"
   }
 
-  if (/(^|\n)\s*\S+\s+ass\s+/m.test(filters)) {
+  if (hasFfmpegFilter(filters, "ass")) {
     return "ass"
   }
 
   return ""
+}
+
+function hasFfmpegFilter(filters, filterName) {
+  return new RegExp(`(^|\\n)\\s*\\S+\\s+${filterName}\\s+`, "m").test(filters)
+}
+
+function hasFfmpegEncoder(encoders, encoderName) {
+  return new RegExp(`(^|\\n)\\s*\\S+\\s+${encoderName}\\s+`, "m").test(encoders)
+}
+
+async function getAvailableVideoEncoders(ffmpegPath) {
+  const encoders = await getFfmpegEncoders(ffmpegPath)
+
+  return {
+    libx264: hasFfmpegEncoder(encoders, "libx264"),
+    h264_videotoolbox: hasFfmpegEncoder(encoders, "h264_videotoolbox"),
+    h264_nvenc: hasFfmpegEncoder(encoders, "h264_nvenc"),
+    h264_qsv: hasFfmpegEncoder(encoders, "h264_qsv"),
+    h264_amf: hasFfmpegEncoder(encoders, "h264_amf")
+  }
+}
+
+async function hasFfmpegDrawtext(ffmpegPath) {
+  return hasFfmpegFilter(await getFfmpegFilters(ffmpegPath), "drawtext")
+}
+
+async function hasFfmpegOverlay(ffmpegPath) {
+  const filters = await getFfmpegFilters(ffmpegPath)
+  return hasFfmpegFilter(filters, "overlay") && hasFfmpegFilter(filters, "scale")
 }
 
 async function runFfprobeJson(ffprobePath, args) {
@@ -200,9 +309,15 @@ async function runFfmpeg(ffmpegPath, args) {
 
 module.exports = {
   INSTALL_HELP,
+  OVERLAY_HELP,
   detectFfmpegTools,
+  getAvailableVideoEncoders,
+  getFfmpegEncoders,
   getFfmpegFilters,
   getFfmpegOverlayFilter,
+  getPlatformArchKey,
+  hasFfmpegDrawtext,
+  hasFfmpegOverlay,
   getVideoDuration,
   runFfprobeJson,
   runFfmpeg

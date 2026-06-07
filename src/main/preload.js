@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld("shortsCreator", {
   saveSettings(settings) {
     return ipcRenderer.invoke("settings:save", settings)
   },
+  listSystemFonts() {
+    return ipcRenderer.invoke("fonts:list")
+  },
   selectSourceVideo(defaultPath) {
     return ipcRenderer.invoke("dialog:select-source-video", {
       title: "Select Source Video",

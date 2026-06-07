@@ -4,6 +4,7 @@
   const api = window.shortsCreator
   const dom = {}
   let generatedFiles = []
+  let systemFonts = []
   let saveTimer = null
 
   function init() {
@@ -23,7 +24,16 @@
       "partCount",
       "overlapSeconds",
       "layoutMode",
+      "outputResolution",
       "crf",
+      "encoderMode",
+      "encoderPreset",
+      "parallelJobs",
+      "titleFontFamily",
+      "titleHighlightOpacity",
+      "fontSearch",
+      "fontList",
+      "fontCount",
       "captionSource",
       "captionStylePreset",
       "captionFontSize",
@@ -32,6 +42,7 @@
       "sourceBrowseButton",
       "outputBrowseButton",
       "srtBrowseButton",
+      "refreshFontsButton",
       "checkFfmpegButton",
       "chooseFfmpegButton",
       "chooseFfprobeButton",
@@ -60,6 +71,11 @@
     dom.sourceBrowseButton.addEventListener("click", selectSourceVideo)
     dom.outputBrowseButton.addEventListener("click", selectOutputFolder)
     dom.srtBrowseButton.addEventListener("click", selectSrtFile)
+    dom.refreshFontsButton.addEventListener("click", () => loadSystemFonts(true))
+    dom.fontSearch.addEventListener("input", renderFontList)
+    dom.titleFontFamily.addEventListener("input", () => {
+      renderFontList()
+    })
     dom.checkFfmpegButton.addEventListener("click", () => checkFfmpeg(true))
     dom.chooseFfmpegButton.addEventListener("click", chooseFfmpeg)
     dom.chooseFfprobeButton.addEventListener("click", chooseFfprobe)
@@ -68,6 +84,7 @@
     dom.clearLogButton.addEventListener("click", clearLog)
     dom.splitMode.addEventListener("change", updateConditionalFields)
     dom.captionSource.addEventListener("change", updateConditionalFields)
+    dom.encoderMode.addEventListener("change", updateConditionalFields)
     dom.sourceVideo.addEventListener("change", readSelectedVideoInfo)
     dom.outputFolder.addEventListener("change", refreshGeneratedListFromOutput)
 
@@ -106,6 +123,7 @@
       log("shortsCreator ready.")
       log("Choose one source video, an output folder, split settings, and captions if needed.")
       await checkFfmpeg(false)
+      loadSystemFonts(false)
       await readSelectedVideoInfo()
       await refreshGeneratedListFromOutput()
     } catch (error) {
@@ -124,7 +142,13 @@
       dom.partCount,
       dom.overlapSeconds,
       dom.layoutMode,
+      dom.outputResolution,
       dom.crf,
+      dom.encoderMode,
+      dom.encoderPreset,
+      dom.parallelJobs,
+      dom.titleFontFamily,
+      dom.titleHighlightOpacity,
       dom.captionSource,
       dom.captionStylePreset,
       dom.captionFontSize,
@@ -142,7 +166,13 @@
     dom.partCount.value = settings.partCount || 5
     dom.overlapSeconds.value = Number.isFinite(settings.overlapSeconds) ? settings.overlapSeconds : 5
     dom.layoutMode.value = settings.layoutMode || "blurred"
+    dom.outputResolution.value = settings.outputResolution || "720x1280"
     dom.crf.value = Number.isFinite(settings.crf) ? settings.crf : 22
+    dom.encoderMode.value = settings.encoderMode || "software"
+    dom.encoderPreset.value = settings.encoderPreset || "ultrafast"
+    dom.parallelJobs.value = Number.isFinite(settings.parallelJobs) ? settings.parallelJobs : 1
+    dom.titleFontFamily.value = settings.titleFontFamily || "Arial"
+    dom.titleHighlightOpacity.value = Number.isFinite(settings.titleHighlightOpacity) ? settings.titleHighlightOpacity : 100
     dom.captionSource.value = settings.captionSource || "none"
     dom.captionStylePreset.value = settings.captionStylePreset || "tiktok"
     dom.captionFontSize.value = settings.captionFontSize || 58
@@ -160,7 +190,13 @@
       partCount: Number(dom.partCount.value),
       overlapSeconds: Number(dom.overlapSeconds.value),
       layoutMode: dom.layoutMode.value,
+      outputResolution: dom.outputResolution.value,
       crf: Number(dom.crf.value),
+      encoderMode: dom.encoderMode.value,
+      encoderPreset: dom.encoderPreset.value,
+      parallelJobs: Number(dom.parallelJobs.value),
+      titleFontFamily: dom.titleFontFamily.value.trim(),
+      titleHighlightOpacity: Number(dom.titleHighlightOpacity.value),
       captionSource: dom.captionSource.value,
       captionStylePreset: dom.captionStylePreset.value,
       captionFontSize: Number(dom.captionFontSize.value),
@@ -184,11 +220,14 @@
     const splitByParts = dom.splitMode.value === "parts"
     const useSrt = dom.captionSource.value === "srt"
     const useAuto = dom.captionSource.value === "auto"
+    const useHardwareOnly = dom.encoderMode.value === "hardware"
 
     dom.segmentLengthField.classList.toggle("muted-field", splitByParts)
     dom.partCountField.classList.toggle("muted-field", !splitByParts)
+    dom.encoderPreset.closest(".field").classList.toggle("muted-field", useHardwareOnly)
     dom.segmentLength.disabled = splitByParts
     dom.partCount.disabled = !splitByParts
+    dom.encoderPreset.disabled = useHardwareOnly
     dom.srtFileField.classList.toggle("hidden", !useSrt)
 
     if (useAuto) {
@@ -265,7 +304,7 @@
 
   function showFfmpegResult(result, showLog) {
     if (result.ok) {
-      dom.ffmpegSummary.textContent = `Ready. ffmpeg: ${result.ffmpegSource}; ffprobe: ${result.ffprobeSource}.`
+      dom.ffmpegSummary.textContent = `Ready. ffmpeg: ${result.ffmpegSource}; ffprobe: ${result.ffprobeSource}; overlay: ${result.overlayFilter}.`
 
       if (showLog) {
         log(result.message)
@@ -273,7 +312,7 @@
       return
     }
 
-    dom.ffmpegSummary.textContent = "FFmpeg or ffprobe is missing. Choose paths manually or install FFmpeg."
+    dom.ffmpegSummary.textContent = "FFmpeg is not ready. Install/select ffmpeg, ffprobe, and title overlay filter support."
 
     if (showLog) {
       log(result.message, "warning")
@@ -341,6 +380,8 @@
       dom.sourceBrowseButton,
       dom.outputBrowseButton,
       dom.srtBrowseButton,
+      dom.refreshFontsButton,
+      dom.fontSearch,
       dom.checkFfmpegButton,
       dom.chooseFfmpegButton,
       dom.chooseFfprobeButton,
@@ -349,6 +390,8 @@
     ]).forEach((element) => {
       element.disabled = isGenerating
     })
+
+    dom.fontList.classList.toggle("disabled", isGenerating)
 
     if (!isGenerating) {
       updateConditionalFields()
@@ -414,6 +457,63 @@
     }
 
     return `${minutes}:${String(seconds).padStart(2, "0")}`
+  }
+
+  async function loadSystemFonts(showLog) {
+    try {
+      dom.fontCount.textContent = "Loading font options..."
+      const fonts = await api.listSystemFonts()
+      systemFonts = fonts
+      renderFontList()
+
+      if (showLog) {
+        log(`Loaded ${fonts.length} installed font option(s).`)
+      }
+    } catch (error) {
+      if (showLog) {
+        log(`Could not load installed fonts: ${error.message}`, "warning")
+      }
+      dom.fontCount.textContent = "Could not load installed fonts."
+    }
+  }
+
+  function renderFontList() {
+    const selectedFont = dom.titleFontFamily.value.trim()
+    const query = dom.fontSearch.value.trim().toLowerCase()
+    const queryParts = query.split(/\s+/).filter(Boolean)
+    const fonts = systemFonts.filter((fontName) => {
+      const normalized = fontName.toLowerCase()
+      return queryParts.every((part) => normalized.includes(part))
+    })
+
+    dom.fontList.innerHTML = ""
+
+    fonts.forEach((fontName) => {
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = `font-option${fontName === selectedFont ? " selected" : ""}`
+      button.textContent = fontName
+      button.style.fontFamily = `"${fontName}", sans-serif`
+      button.addEventListener("click", () => {
+        if (dom.fontList.classList.contains("disabled")) {
+          return
+        }
+
+        dom.titleFontFamily.value = fontName
+        dom.fontSearch.value = ""
+        queueSaveSettings()
+        renderFontList()
+      })
+      dom.fontList.appendChild(button)
+    })
+
+    if (!systemFonts.length) {
+      dom.fontCount.textContent = "Loading font options..."
+    } else if (!fonts.length) {
+      dom.fontCount.textContent = `No fonts match "${dom.fontSearch.value.trim()}".`
+    } else {
+      dom.fontCount.textContent = `${fonts.length} of ${systemFonts.length} fonts shown.`
+    }
   }
 
   document.addEventListener("DOMContentLoaded", init)

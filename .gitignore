@@ -7,8 +7,6 @@ out/
 .cache/
 dist/*
 !dist/
-!dist/shortsCreator-*.dmg
-!dist/shortsCreator-Setup-*.exe
 *.AppImage
 *.snap
 *.deb

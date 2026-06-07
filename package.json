@@ -22,8 +22,7 @@
     "desktop"
   ],
   "author": "Ariq Serazi",
-  "license": "MIT"
-  ,
+  "license": "MIT",
   "devDependencies": {
     "electron": "^31.7.7",
     "electron-builder": "^24.13.3"
@@ -40,6 +39,12 @@
       "package.json",
       "README.md",
       "LICENSE"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor",
+        "to": "vendor"
+      }
     ],
     "mac": {
       "target": "dmg",
@@ -62,5 +67,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "shortsCreator"
     }
+  },
+  "dependencies": {
+    "pureimage": "^0.4.18"
   }
 }

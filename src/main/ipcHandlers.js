@@ -7,6 +7,7 @@ const { scanGeneratedParts } = require("../core/filenameUtils")
 const { readVideoInfo } = require("../core/videoInfo")
 const { generateVideoParts } = require("../core/videoProcessor")
 const { isSupportedInputVideo } = require("../core/validation")
+const { listSystemFonts } = require("../core/systemFonts")
 
 function registerIpcHandlers(options) {
   const settingsStore = options.settingsStore
@@ -46,6 +47,10 @@ function registerIpcHandlers(options) {
 
   ipcMain.handle("settings:save", (event, settings) => {
     return saveSettings(Object.assign({}, getSavedSettings(), settings || {}))
+  })
+
+  ipcMain.handle("fonts:list", () => {
+    return listSystemFonts()
   })
 
   ipcMain.handle("dialog:select-folder", async (event, dialogOptions = {}) => {

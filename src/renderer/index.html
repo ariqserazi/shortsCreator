@@ -103,8 +103,58 @@
               </label>
 
               <label class="field">
+                <span>Output Size</span>
+                <select id="outputResolution">
+                  <option value="720x1280">720x1280 (fast)</option>
+                  <option value="1080x1920">1080x1920 (best quality)</option>
+                </select>
+              </label>
+
+              <label class="field">
                 <span>Output Quality (CRF)</span>
                 <input id="crf" type="number" min="18" max="30" step="1" />
+              </label>
+
+              <label class="field">
+                <span>Encoder Method</span>
+                <select id="encoderMode">
+                  <option value="software">Software x264</option>
+                  <option value="auto">Auto hardware if available</option>
+                  <option value="hardware">Require hardware H.264</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Software Encoder Speed</span>
+                <select id="encoderPreset">
+                  <option value="ultrafast">Ultrafast (largest files)</option>
+                  <option value="superfast">Superfast</option>
+                  <option value="veryfast">Veryfast</option>
+                  <option value="faster">Faster</option>
+                  <option value="fast">Fast</option>
+                  <option value="medium">Medium (slowest)</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Parallel Render Jobs</span>
+                <input id="parallelJobs" type="number" min="1" max="4" step="1" />
+              </label>
+
+              <label class="field wide-field">
+                <span>Title Font Family</span>
+                <div class="path-row">
+                  <input id="titleFontFamily" type="text" placeholder="Choose an installed font" />
+                  <button id="refreshFontsButton" type="button">Fonts</button>
+                </div>
+                <input id="fontSearch" class="font-search" type="text" placeholder="Search installed fonts" />
+                <div id="fontList" class="font-list" aria-label="Installed fonts"></div>
+                <div id="fontCount" class="font-count">Loading font options...</div>
+              </label>
+
+              <label class="field">
+                <span>Title Highlight Opacity (%)</span>
+                <input id="titleHighlightOpacity" type="number" min="0" max="100" step="1" />
               </label>
             </div>
           </section>

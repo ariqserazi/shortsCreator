@@ -20,6 +20,12 @@ const DEFAULT_SETTINGS = Object.freeze({
   partCount: 5,
   overlapSeconds: 5,
   layoutMode: "blurred",
+  outputResolution: "720x1280",
+  titleFontFamily: "Arial",
+  titleHighlightOpacity: 100,
+  encoderMode: "software",
+  encoderPreset: "ultrafast",
+  parallelJobs: 1,
   captionSource: "none",
   srtFile: "",
   captionFontSize: 58,
@@ -32,8 +38,11 @@ const DEFAULT_SETTINGS = Object.freeze({
 
 const SPLIT_MODES = new Set(["length", "parts"])
 const LAYOUT_MODES = new Set(["blurred", "crop", "black"])
+const OUTPUT_RESOLUTIONS = new Set(["720x1280", "1080x1920"])
 const CAPTION_SOURCES = new Set(["none", "srt", "auto"])
 const CAPTION_STYLE_PRESETS = new Set(["tiktok", "simple", "boxed"])
+const ENCODER_MODES = new Set(["auto", "hardware", "software"])
+const ENCODER_PRESETS = new Set(["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"])
 
 function toNumber(value) {
   if (value === "" || value === null || typeof value === "undefined") {
@@ -51,10 +60,13 @@ function normalizeSettings(rawSettings) {
   const settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings || {})
   const splitMode = SPLIT_MODES.has(settings.splitMode) ? settings.splitMode : DEFAULT_SETTINGS.splitMode
   const layoutMode = LAYOUT_MODES.has(settings.layoutMode) ? settings.layoutMode : DEFAULT_SETTINGS.layoutMode
+  const outputResolution = OUTPUT_RESOLUTIONS.has(settings.outputResolution) ? settings.outputResolution : DEFAULT_SETTINGS.outputResolution
   const captionSource = CAPTION_SOURCES.has(settings.captionSource) ? settings.captionSource : DEFAULT_SETTINGS.captionSource
   const captionStylePreset = CAPTION_STYLE_PRESETS.has(settings.captionStylePreset)
     ? settings.captionStylePreset
     : DEFAULT_SETTINGS.captionStylePreset
+  const encoderMode = ENCODER_MODES.has(settings.encoderMode) ? settings.encoderMode : DEFAULT_SETTINGS.encoderMode
+  const encoderPreset = ENCODER_PRESETS.has(settings.encoderPreset) ? settings.encoderPreset : DEFAULT_SETTINGS.encoderPreset
 
   return {
     sourceVideo: String(settings.sourceVideo || "").trim(),
@@ -65,6 +77,12 @@ function normalizeSettings(rawSettings) {
     partCount: toNumber(settings.partCount),
     overlapSeconds: toNumber(settings.overlapSeconds),
     layoutMode,
+    outputResolution,
+    titleFontFamily: String(settings.titleFontFamily || DEFAULT_SETTINGS.titleFontFamily).trim(),
+    titleHighlightOpacity: toNumber(settings.titleHighlightOpacity),
+    encoderMode,
+    encoderPreset,
+    parallelJobs: toNumber(settings.parallelJobs),
     captionSource,
     srtFile: String(settings.srtFile || "").trim(),
     captionFontSize: toNumber(settings.captionFontSize),
@@ -156,6 +174,22 @@ function validateGenerationSettings(rawSettings) {
 
   if (!Number.isFinite(settings.crf) || settings.crf < 18 || settings.crf > 30) {
     throw new Error("CRF must be between 18 and 30.")
+  }
+
+  if (!Number.isInteger(settings.parallelJobs) || settings.parallelJobs < 1 || settings.parallelJobs > 4) {
+    throw new Error("Parallel jobs must be a whole number between 1 and 4.")
+  }
+
+  if (!settings.titleFontFamily) {
+    throw new Error("Title font family is required.")
+  }
+
+  if (settings.titleFontFamily.length > 80) {
+    throw new Error("Title font family must be 80 characters or fewer.")
+  }
+
+  if (!Number.isFinite(settings.titleHighlightOpacity) || settings.titleHighlightOpacity < 0 || settings.titleHighlightOpacity > 100) {
+    throw new Error("Title highlight opacity must be between 0 and 100.")
   }
 
   return Object.assign({}, settings, {

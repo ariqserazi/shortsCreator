@@ -78,6 +78,20 @@ function escapeAssText(value) {
     .replace(/\n+/g, "\\N")
 }
 
+function sanitizeAssField(value, fallback) {
+  return String(value || fallback || "")
+    .replace(/[\r\n,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || fallback
+}
+
+function formatAssBlackWithOpacity(opacityPercent) {
+  const rawOpacity = Number(opacityPercent)
+  const opacity = Number.isFinite(rawOpacity) ? Math.max(0, Math.min(100, rawOpacity)) : 100
+  const alpha = 255 - Math.round(opacity * 2.55)
+  return `&H${alpha.toString(16).toUpperCase().padStart(2, "0")}000000`
+}
+
 function getCaptionStyle(settings) {
   const fontSize = settings.captionFontSize
   const y = settings.captionVerticalPosition
@@ -120,6 +134,8 @@ function getCaptionStyle(settings) {
 
 function buildAssOverlay({ titleText, segment, settings, captions }) {
   const captionStyle = getCaptionStyle(settings)
+  const titleFontFamily = sanitizeAssField(settings.titleFontFamily, "Arial")
+  const titleBoxColor = formatAssBlackWithOpacity(settings.titleHighlightOpacity)
   const title = escapeAssText(titleText)
   const lines = [
     "[Script Info]",
@@ -131,13 +147,16 @@ function buildAssOverlay({ titleText, segment, settings, captions }) {
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Title,Arial,58,&H00FFFFFF,&H000000FF,&H99000000,&H99000000,-1,0,0,0,100,100,0,0,3,4,0,8,70,70,86,1`,
+    `Style: Title,${titleFontFamily},58,&H00FFFFFF,&H000000FF,${titleBoxColor},${titleBoxColor},-1,0,0,0,100,100,0,0,3,4,0,8,70,70,86,1`,
     `Style: Caption,Arial,${captionStyle.fontSize},${captionStyle.primary},&H000000FF,${captionStyle.outline},&HAA000000,-1,0,0,0,100,100,0,0,${captionStyle.borderStyle},${captionStyle.outlineSize},${captionStyle.shadow},5,70,70,70,1`,
     "",
     "[Events]",
-    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
-    `Dialogue: 1,${formatAssTime(0)},${formatAssTime(segment.duration)},Title,,0,0,0,,${title}`
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
   ]
+
+  if (titleText) {
+    lines.push(`Dialogue: 1,${formatAssTime(0)},${formatAssTime(segment.duration)},Title,,0,0,0,,${title}`)
+  }
 
   for (const caption of captions || []) {
     const start = Math.max(0, caption.start - segment.start)
@@ -181,6 +200,7 @@ module.exports = {
   buildAssOverlay,
   cleanupTempAssFile,
   createTempAssFile,
+  formatAssBlackWithOpacity,
   filterCaptionsForSegment,
   loadSrtFile,
   parseSrt
