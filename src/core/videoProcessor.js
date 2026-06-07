@@ -3,14 +3,15 @@
 const fs = require("node:fs")
 const path = require("node:path")
 const { buildOutputFileName, getUniqueOutputPath } = require("./filenameUtils")
-const { getAvailableVideoEncoders, getFfmpegOverlayFilter, runFfmpeg } = require("./ffmpegTools")
+const { getFfmpegOverlayFilter, runFfmpeg, runFfmpegWithProgress } = require("./ffmpegTools")
+const { selectVideoEncoder } = require("./encoderSelector")
 const { generateLocalCaptions } = require("./captionGenerator")
 const { cleanupTempAssFile, createTempAssFile, filterCaptionsForSegment, loadSrtFile } = require("./subtitleTools")
 const { ensureOutputFolder, validateGenerationSettings } = require("./validation")
 const { createSegmentPlan } = require("./segmentPlanner")
 const { readVideoInfo } = require("./videoInfo")
 const { findFontFileByFamily } = require("./systemFonts")
-const { cleanupTempTitleImage, createTempTitleImage } = require("./titleImage")
+const { getRenderPreset, isCutOnlyPreset } = require("./renderPresets")
 
 function noop() {}
 
@@ -40,94 +41,26 @@ function getOutputSize(settings) {
   }
 }
 
-function getPreferredHardwareEncoder(availableEncoders) {
-  const platformOrder = process.platform === "darwin"
-    ? ["h264_videotoolbox", "h264_nvenc", "h264_qsv", "h264_amf"]
-    : ["h264_nvenc", "h264_qsv", "h264_amf", "h264_videotoolbox"]
-
-  return platformOrder.find((encoderName) => availableEncoders[encoderName]) || ""
+function getScaleFlags(settings) {
+  return settings.renderPreset === "fast" ? "fast_bilinear" : "bicubic"
 }
 
-function getHardwareBitrateKbps(settings, outputSize) {
-  const pixels = outputSize.width * outputSize.height
-  const qualityMultiplier = Math.pow(2, (22 - settings.crf) / 6)
-  const bitrate = pixels * 0.0042 * qualityMultiplier
-  const clamped = Math.max(1600, Math.min(14000, bitrate))
+function createScaleFilter(width, height, options = {}) {
+  const parts = [`scale=${width}:${height}`]
 
-  return Math.round(clamped / 100) * 100
+  if (options.forceOriginalAspectRatio) {
+    parts.push(`force_original_aspect_ratio=${options.forceOriginalAspectRatio}`)
+  }
+
+  if (options.flags) {
+    parts.push(`flags=${options.flags}`)
+  }
+
+  return parts.join(":")
 }
 
-async function createEncoderPlan(ffmpegPath, settings, outputSize, report) {
-  const availableEncoders = await getAvailableVideoEncoders(ffmpegPath)
-  const hardwareEncoder = getPreferredHardwareEncoder(availableEncoders)
-  const wantsSoftware = settings.encoderMode === "software"
-  const wantsHardware = settings.encoderMode === "hardware"
-
-  if (!wantsSoftware && hardwareEncoder) {
-    const bitrateKbps = getHardwareBitrateKbps(settings, outputSize)
-
-    return {
-      mode: "hardware",
-      codec: hardwareEncoder,
-      bitrateKbps,
-      args: buildHardwareVideoEncoderArgs(hardwareEncoder, bitrateKbps)
-    }
-  }
-
-  if (wantsHardware) {
-    throw new Error("Hardware H.264 encoding was selected, but this FFmpeg build does not expose a supported hardware encoder.")
-  }
-
-  if (!availableEncoders.libx264) {
-    throw new Error("This FFmpeg build does not expose libx264, so shortsCreator cannot encode H.264 output.")
-  }
-
-  if (!wantsSoftware) {
-    report.log("Hardware H.264 encoder not available. Falling back to software libx264.")
-  }
-
-  return {
-    mode: "software",
-    codec: "libx264",
-    bitrateKbps: 0,
-    args: [
-      "-c:v",
-      "libx264",
-      "-preset",
-      settings.encoderPreset,
-      "-crf",
-      String(settings.crf),
-      "-threads",
-      "0"
-    ]
-  }
-}
-
-function buildHardwareVideoEncoderArgs(encoderName, bitrateKbps) {
-  const args = [
-    "-c:v",
-    encoderName,
-    "-b:v",
-    `${bitrateKbps}k`,
-    "-maxrate",
-    `${Math.round(bitrateKbps * 1.35)}k`,
-    "-bufsize",
-    `${Math.round(bitrateKbps * 2)}k`
-  ]
-
-  if (encoderName === "h264_videotoolbox") {
-    args.push("-profile:v", "high", "-realtime", "true", "-allow_sw", "true")
-  }
-
-  return args
-}
-
-function buildAudioEncoderArgs(videoInfo) {
-  if (videoInfo.hasAudio && String(videoInfo.audioCodec || "").toLowerCase() === "aac") {
-    return ["-c:a", "copy"]
-  }
-
-  return ["-c:a", "aac", "-b:a", "160k"]
+function buildAudioEncoderArgs(mode) {
+  return mode === "copy" ? ["-c:a", "copy"] : ["-c:a", "aac", "-b:a", "160k"]
 }
 
 function getEvenFloor(value) {
@@ -168,34 +101,45 @@ function getCenteredCrop(sourceSize, outputSize) {
   }
 }
 
-function createCropLayoutFilter(outputSize, sourceSize) {
+function createCropLayoutFilter(outputSize, sourceSize, scaleFlags = "bicubic") {
   const crop = getCenteredCrop(sourceSize, outputSize)
 
   if (!crop) {
-    return `[0:v]scale=${outputSize.width}:${outputSize.height}:force_original_aspect_ratio=increase,crop=${outputSize.width}:${outputSize.height},setsar=1[laid]`
+    return `[0:v]${createScaleFilter(outputSize.width, outputSize.height, {
+      forceOriginalAspectRatio: "increase",
+      flags: scaleFlags
+    })},crop=${outputSize.width}:${outputSize.height},setsar=1[laid]`
   }
 
-  return `[0:v]crop=${crop.width}:${crop.height}:${crop.x}:${crop.y},scale=${outputSize.width}:${outputSize.height},setsar=1[laid]`
+  return `[0:v]crop=${crop.width}:${crop.height}:${crop.x}:${crop.y},${createScaleFilter(outputSize.width, outputSize.height, {
+    flags: scaleFlags
+  })},setsar=1[laid]`
 }
 
-function createBaseLayoutFilter(layoutMode, segmentDuration, outputSize, sourceSize) {
+function createBaseLayoutFilter(layoutMode, segmentDuration, outputSize, sourceSize, scaleFlags = "bicubic") {
   const width = outputSize.width
   const height = outputSize.height
 
   if (layoutMode === "crop") {
-    return createCropLayoutFilter(outputSize, sourceSize)
+    return createCropLayoutFilter(outputSize, sourceSize, scaleFlags)
   }
 
   if (layoutMode === "black") {
-    return `color=c=black:s=${width}x${height}:d=${segmentDuration}[bg];[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,setsar=1[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[laid]`
+    return `color=c=black:s=${width}x${height}:d=${segmentDuration}[bg];[0:v]${createScaleFilter(width, height, {
+      forceOriginalAspectRatio: "decrease",
+      flags: scaleFlags
+    })},setsar=1[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[laid]`
   }
 
-  return `[1:v]setsar=1[bg];[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,setsar=1[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[laid]`
+  return `[1:v]setsar=1[bg];[0:v]${createScaleFilter(width, height, {
+    forceOriginalAspectRatio: "decrease",
+    flags: scaleFlags
+  })},setsar=1[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2[laid]`
 }
 
 function createLayoutFilter(options) {
   const filters = [
-    createBaseLayoutFilter(options.layoutMode, options.segmentDuration, options.outputSize, options.sourceSize)
+    createBaseLayoutFilter(options.layoutMode, options.segmentDuration, options.outputSize, options.sourceSize, options.scaleFlags)
   ]
 
   const captionOverlay = options.assPath
@@ -203,10 +147,9 @@ function createLayoutFilter(options) {
     : ""
 
   if (captionOverlay) {
-    filters.push(`[laid][${options.titleInputIndex}:v]overlay=0:0[titled]`)
-    filters.push(`[titled]${captionOverlay}[v]`)
+    filters.push(`[laid]${captionOverlay}[v]`)
   } else {
-    filters.push(`[laid][${options.titleInputIndex}:v]overlay=0:0[v]`)
+    filters.push("[laid]null[v]")
   }
 
   return filters.join(";")
@@ -230,7 +173,12 @@ async function createStaticBlurBackground({ ffmpegPath, sourceVideo, segment, ou
     "-frames:v",
     "1",
     "-vf",
-    `scale=${smallWidth}:${smallHeight}:force_original_aspect_ratio=increase,crop=${smallWidth}:${smallHeight},boxblur=3:1,scale=${outputSize.width}:${outputSize.height}`,
+    `${createScaleFilter(smallWidth, smallHeight, {
+      forceOriginalAspectRatio: "increase",
+      flags: "fast_bilinear"
+    })},crop=${smallWidth}:${smallHeight},boxblur=3:1,${createScaleFilter(outputSize.width, outputSize.height, {
+      flags: "fast_bilinear"
+    })}`,
     imagePath
   ])
 
@@ -265,12 +213,99 @@ async function prepareCaptions(settings, sourceVideo, report) {
   return []
 }
 
-async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, encoderPlan, audioEncoderArgs, settings, sourceVideo, sourceSize, segment, plan, captions, report }) {
+function createProgressHandler({ report, segment, plan, getCompletedParts }) {
+  return (progress) => {
+    const currentPartPercent = segment.duration > 0
+      ? Math.max(0, Math.min(100, Math.round(((progress.outTime || 0) / segment.duration) * 100)))
+      : 0
+    const completedParts = getCompletedParts()
+    const overallPercent = Math.max(0, Math.min(100, Math.round(((completedParts + currentPartPercent / 100) / plan.totalParts) * 100)))
+
+    report.progress({
+      currentPart: segment.index,
+      totalParts: plan.totalParts,
+      current: completedParts,
+      total: plan.totalParts,
+      currentPartPercent,
+      percent: overallPercent,
+      fps: progress.fps || "",
+      speed: progress.speed || "",
+      message: `Rendering Part ${segment.index} of ${plan.totalParts}: ${currentPartPercent}%`
+    })
+  }
+}
+
+async function runFfmpegWithAudioFallback({ ffmpegPath, args, outputPath, audioMode, report, onProgress }) {
+  try {
+    await runFfmpegWithProgress(ffmpegPath, args, { onProgress })
+    return audioMode
+  } catch (error) {
+    if (audioMode !== "copy") {
+      throw error
+    }
+
+    report.log("Audio copy failed, retrying with AAC audio encoding.")
+    fs.rmSync(outputPath, { force: true })
+    const retryArgs = args.slice()
+    const audioCopyIndex = retryArgs.findIndex((value, index) => value === "-c:a" && retryArgs[index + 1] === "copy")
+
+    if (audioCopyIndex !== -1) {
+      retryArgs.splice(audioCopyIndex, 2, "-c:a", "aac", "-b:a", "160k")
+    }
+
+    await runFfmpegWithProgress(ffmpegPath, retryArgs, { onProgress })
+    return "aac"
+  }
+}
+
+async function generateCutOnlyPart({ ffmpegPath, settings, sourceVideo, segment, plan, report, getCompletedParts }) {
+  const fileName = buildOutputFileName(settings.videoTitle, segment.index, plan.totalParts)
+  const outputPath = getUniqueOutputPath(settings.outputFolder, fileName)
+  const startedAt = Date.now()
+
+  report.log(`Writing ${path.basename(outputPath)} from ${formatSeconds(segment.start)} to ${formatSeconds(segment.end)} using stream copy.`)
+
+  await runFfmpegWithProgress(ffmpegPath, [
+    "-y",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-ss",
+    String(segment.start),
+    "-i",
+    sourceVideo,
+    "-t",
+    String(segment.duration),
+    "-map",
+    "0",
+    "-c",
+    "copy",
+    "-avoid_negative_ts",
+    "make_zero",
+    "-movflags",
+    "+faststart",
+    outputPath
+  ], {
+    onProgress: createProgressHandler({ report, segment, plan, getCompletedParts })
+  })
+
+  if (!fs.existsSync(outputPath)) {
+    throw new Error(`FFmpeg finished but the output file was not created: ${outputPath}`)
+  }
+
+  report.log(`Finished ${path.basename(outputPath)} in ${Math.max(1, Math.round((Date.now() - startedAt) / 1000))} second(s).`)
+
+  return outputPath
+}
+
+async function generateStyledPart({ ffmpegPath, overlayFilterName, titleFontFile, encoderPlan, settings, sourceVideo, sourceSize, segment, plan, captions, report, getCompletedParts }) {
   const fileName = buildOutputFileName(settings.videoTitle, segment.index, plan.totalParts)
   const outputPath = getUniqueOutputPath(settings.outputFolder, fileName)
   const titleText = `${settings.videoTitle} - Part ${segment.index}`
   const segmentCaptions = filterCaptionsForSegment(captions, segment)
   const outputSize = getOutputSize(settings)
+  const hasTitle = Boolean(settings.showTitleLabel)
+  const hasAssOverlay = hasTitle || segmentCaptions.length > 0
   const tempBackground = settings.layoutMode === "blurred"
     ? await createStaticBlurBackground({
       ffmpegPath,
@@ -279,19 +314,13 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
       outputSize
     })
     : { imagePath: "", tempDir: "" }
-  const tempTitle = await createTempTitleImage({
-    titleText,
-    fontPath: titleFontFile,
-    highlightOpacity: settings.titleHighlightOpacity,
-    outputWidth: outputSize.width,
-    outputHeight: outputSize.height
-  })
-  const tempAss = segmentCaptions.length
+  const tempAss = hasAssOverlay
     ? createTempAssFile({
-      titleText: "",
+      titleText: hasTitle ? titleText : "",
       segment,
       settings,
-      captions: segmentCaptions
+      captions: segmentCaptions,
+      outputSize
     })
     : { assPath: "", tempDir: "" }
 
@@ -301,7 +330,7 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
       segmentDuration: segment.duration,
       outputSize,
       sourceSize,
-      titleInputIndex: settings.layoutMode === "blurred" ? 2 : 1,
+      scaleFlags: getScaleFlags(settings),
       titleText,
       titleFontFile,
       settings,
@@ -312,12 +341,7 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
     report.log(`Writing ${path.basename(outputPath)} from ${formatSeconds(segment.start)} to ${formatSeconds(segment.end)}.`)
 
     const startedAt = Date.now()
-
-    await runFfmpeg(ffmpegPath, [
-      "-y",
-      "-hide_banner",
-      "-loglevel",
-      "error",
+    const inputArgs = [
       "-ss",
       String(segment.start),
       "-i",
@@ -329,13 +353,14 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
         "1",
         "-i",
         tempBackground.imagePath
-      ] : []),
-      "-loop",
-      "1",
-      "-framerate",
-      "1",
-      "-i",
-      tempTitle.imagePath,
+      ] : [])
+    ]
+    const baseArgs = [
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      ...inputArgs,
       "-t",
       String(segment.duration),
       "-filter_complex",
@@ -346,14 +371,23 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
       "[v]",
       "-map",
       "0:a?",
-      ...encoderPlan.args,
+      ...encoderPlan.encoderArgs,
       "-pix_fmt",
       "yuv420p",
-      ...audioEncoderArgs,
+      ...buildAudioEncoderArgs("copy"),
       "-movflags",
       "+faststart",
       outputPath
-    ])
+    ]
+
+    await runFfmpegWithAudioFallback({
+      ffmpegPath,
+      args: baseArgs,
+      outputPath,
+      audioMode: "copy",
+      report,
+      onProgress: createProgressHandler({ report, segment, plan, getCompletedParts })
+    })
 
     if (!fs.existsSync(outputPath)) {
       throw new Error(`FFmpeg finished but the output file was not created: ${outputPath}`)
@@ -364,7 +398,6 @@ async function generatePart({ ffmpegPath, overlayFilterName, titleFontFile, enco
     return outputPath
   } finally {
     cleanupTempDirectory(tempBackground.tempDir)
-    cleanupTempTitleImage(tempTitle.tempDir)
     cleanupTempAssFile(tempAss.tempDir)
   }
 }
@@ -414,6 +447,8 @@ async function generateVideoParts(options = {}) {
   }
 
   const settings = validateGenerationSettings(options.settings)
+  const renderPreset = getRenderPreset(settings.renderPreset)
+  const cutOnly = isCutOnlyPreset(settings.renderPreset)
   const outputResult = ensureOutputFolder(settings.outputFolder)
   const generatedFiles = []
 
@@ -427,30 +462,71 @@ async function generateVideoParts(options = {}) {
 
   report.log(`Video duration: ${formatSeconds(videoInfo.duration)}. Source size: ${videoInfo.width}x${videoInfo.height}.`)
   report.status("Planning segments...")
-  const plan = createSegmentPlan(videoInfo, settings)
+  const benchmarkSeconds = Number(options.benchmarkSeconds) || 0
+  const planningVideoInfo = benchmarkSeconds > 0
+    ? Object.assign({}, videoInfo, { duration: Math.min(videoInfo.duration, benchmarkSeconds) })
+    : videoInfo
+  const plan = createSegmentPlan(planningVideoInfo, settings)
   report.log(`Planned ${plan.totalParts} part(s). Segment length: ${Math.round(plan.segmentLength * 100) / 100}s. Overlap: ${plan.overlapSeconds}s.`)
-  report.log(`Render settings: ${settings.layoutMode} layout, ${settings.outputResolution}, ${settings.encoderMode} encoder mode, ${settings.encoderPreset} preset, CRF ${settings.crf}.`)
+  report.log("Render settings:")
+  report.log(`Preset: ${renderPreset.label}`)
+  report.log(`Source duration: ${formatSeconds(videoInfo.duration)}. Source size: ${videoInfo.width}x${videoInfo.height}.`)
+  report.log(cutOnly
+    ? "Output: source resolution/aspect ratio with no styling."
+    : `Output resolution: ${settings.outputResolution}. Layout: ${settings.layoutMode}.`)
+  report.log(`Title overlay: ${!cutOnly && settings.showTitleLabel ? "on" : "off"}. Captions: ${cutOnly ? "off" : settings.captionSource}.`)
+  report.log(`Parallel jobs: ${settings.parallelJobs}. Expected parts: ${plan.totalParts}.`)
 
   report.status("Preparing title and captions...")
-  const captions = await prepareCaptions(settings, settings.sourceVideo, report)
-  const overlayFilterName = captions.length ? await getFfmpegOverlayFilter(ffmpegPath) : ""
-  const titleFontFile = await findFontFileByFamily(settings.titleFontFamily)
-  const outputSize = getOutputSize(settings)
-  const encoderPlan = await createEncoderPlan(ffmpegPath, settings, outputSize, report)
-  const audioEncoderArgs = buildAudioEncoderArgs(videoInfo)
+  const captions = cutOnly ? [] : await prepareCaptions(settings, settings.sourceVideo, report)
+  const needsAssOverlay = !cutOnly && (settings.showTitleLabel || captions.length > 0)
+  const overlayFilterName = needsAssOverlay ? await getFfmpegOverlayFilter(ffmpegPath) : ""
+  const titleFontFile = !cutOnly && settings.showTitleLabel ? await findFontFileByFamily(settings.titleFontFamily) : ""
+  const outputSize = cutOnly ? { width: videoInfo.width, height: videoInfo.height } : getOutputSize(settings)
+  const encoderPlan = cutOnly
+    ? {
+      encoderName: "stream copy",
+      encoderArgs: ["-c", "copy"],
+      label: "stream copy",
+      usesHardware: false,
+      bitrate: null,
+      crf: null,
+      strategy: "copy"
+    }
+    : await selectVideoEncoder({
+      ffmpegPath,
+      encoderMode: settings.encoderMode,
+      renderPreset: settings.renderPreset,
+      platform: process.platform,
+      width: outputSize.width,
+      height: outputSize.height
+    })
 
-  if (captions.length && !overlayFilterName) {
-    throw new Error("This FFmpeg build cannot burn captions. Choose an FFmpeg build with subtitles or ass filter support, or switch captions to No captions.")
+  if (needsAssOverlay && !overlayFilterName) {
+    throw new Error("This FFmpeg build cannot burn ASS title/caption overlays. Choose an FFmpeg build with subtitles or ass filter support, or disable title/captions.")
   }
 
-  report.log(`Using generated PNG title overlays${titleFontFile ? ` with font file: ${titleFontFile}.` : "."}`)
-  report.log(encoderPlan.mode === "hardware"
-    ? `Using hardware video encoder: ${encoderPlan.codec} at about ${encoderPlan.bitrateKbps}k.`
-    : `Using software video encoder: libx264 ${settings.encoderPreset}, CRF ${settings.crf}.`)
-  report.log(audioEncoderArgs.includes("copy") ? "Copying source AAC audio without re-encoding." : "Encoding audio to AAC 160k.")
+  if (cutOnly) {
+    report.log("Cut Only is fastest, but it does not create vertical 9:16 videos or burned captions.")
+  } else if (settings.layoutMode === "blurred") {
+    report.log("Blurred background is enabled. This layout is slower because it adds extra scaling and blur work.")
+  }
+
+  if (needsAssOverlay) {
+    report.log(`Using FFmpeg ${overlayFilterName} filter for ASS title/caption overlays${titleFontFile ? ` with font file: ${titleFontFile}.` : "."}`)
+  } else if (!cutOnly) {
+    report.log("No title or captions enabled. Skipping ASS overlay filter.")
+  }
+
+  report.log(`Encoder selected: ${encoderPlan.label} (${encoderPlan.usesHardware ? "hardware" : encoderPlan.strategy === "copy" ? "stream copy" : "software"}).`)
+  report.log(cutOnly ? "Audio mode: stream copy." : "Audio mode: copy first, retry with AAC 160k if needed.")
 
   if (settings.parallelJobs > 1) {
     report.log(`Rendering up to ${settings.parallelJobs} part(s) at the same time.`)
+
+    if (encoderPlan.usesHardware) {
+      report.log("Hardware encoders can be less stable with parallel jobs. Use 1 job if you see encoder failures.")
+    }
   }
 
   if (settings.captionSource === "srt") {
@@ -480,14 +556,14 @@ async function generateVideoParts(options = {}) {
         overlayFilterName,
         titleFontFile,
         encoderPlan,
-        audioEncoderArgs,
         settings,
         sourceVideo: settings.sourceVideo,
         sourceSize: videoInfo,
         segment,
         plan,
         captions,
-        report
+        report,
+        getCompletedParts: () => completedParts
       })
 
       generatedFiles.push(outputPath)
@@ -516,13 +592,45 @@ async function generateVideoParts(options = {}) {
   }
 }
 
+async function generatePart(options) {
+  if (isCutOnlyPreset(options.settings.renderPreset)) {
+    return generateCutOnlyPart(options)
+  }
+
+  return generateStyledPart(options)
+}
+
+async function benchmarkVideoParts(options = {}) {
+  const startedAt = Date.now()
+  const report = createReporter(options.reporter)
+  const result = await generateVideoParts(Object.assign({}, options, {
+    benchmarkSeconds: 10,
+    settings: Object.assign({}, options.settings || {}, {
+      splitMode: "parts",
+      partCount: 1,
+      overlapSeconds: 0,
+    })
+  }))
+  const elapsedSeconds = Math.max(0.001, (Date.now() - startedAt) / 1000)
+  const speedMultiplier = 10 / elapsedSeconds
+
+  report.log(`10-second test completed in ${Math.round(elapsedSeconds * 10) / 10} seconds. Estimated speed: ${Math.round(speedMultiplier * 10) / 10}x realtime.`)
+
+  return Object.assign({}, result, {
+    benchmark: {
+      elapsedSeconds,
+      speedMultiplier
+    }
+  })
+}
+
 module.exports = {
   createBaseLayoutFilter,
-  createEncoderPlan,
   createCropLayoutFilter,
   createLayoutFilter,
   createStaticBlurBackground,
   getOutputSize,
+  benchmarkVideoParts,
   generatePart,
   generateVideoParts
 }

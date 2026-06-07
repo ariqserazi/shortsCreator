@@ -94,11 +94,21 @@
 
             <div class="settings-grid">
               <label class="field">
+                <span>Render Preset</span>
+                <select id="renderPreset">
+                  <option value="fast">Fast</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="highQuality">High Quality</option>
+                  <option value="cutOnly">Cut Only / No Styling</option>
+                </select>
+              </label>
+
+              <label class="field">
                 <span>Vertical Layout Mode</span>
                 <select id="layoutMode">
-                  <option value="blurred">Blurred background</option>
-                  <option value="crop">Crop to fill</option>
-                  <option value="black">Black background</option>
+                  <option value="crop">Crop to fill - fastest styled layout</option>
+                  <option value="black">Black background - fast</option>
+                  <option value="blurred">Blurred background - slower, nicer look</option>
                 </select>
               </label>
 
@@ -118,9 +128,9 @@
               <label class="field">
                 <span>Encoder Method</span>
                 <select id="encoderMode">
-                  <option value="software">Software x264</option>
-                  <option value="auto">Auto hardware if available</option>
+                  <option value="auto">Auto / Recommended</option>
                   <option value="hardware">Require hardware H.264</option>
+                  <option value="software">Software x264</option>
                 </select>
               </label>
 
@@ -138,7 +148,15 @@
 
               <label class="field">
                 <span>Parallel Render Jobs</span>
-                <input id="parallelJobs" type="number" min="1" max="4" step="1" />
+                <input id="parallelJobs" type="number" min="1" max="2" step="1" />
+              </label>
+
+              <label class="field">
+                <span>Show Title Label</span>
+                <select id="showTitleLabel">
+                  <option value="true">Show title label</option>
+                  <option value="false">No title label</option>
+                </select>
               </label>
 
               <label class="field wide-field">
@@ -157,6 +175,8 @@
                 <input id="titleHighlightOpacity" type="number" min="0" max="100" step="1" />
               </label>
             </div>
+
+            <div class="info-strip" id="renderPresetNote">Fast preset creates 720x1280 styled videos and prefers hardware encoding when available.</div>
           </section>
 
           <section class="section">
@@ -233,6 +253,7 @@
 
             <div class="action-row">
               <button id="generateButton" class="primary-button" type="button">Generate Parts</button>
+              <button id="benchmarkButton" type="button">Render 10-second speed test</button>
               <button id="openOutputButton" type="button">Open Output Folder</button>
               <button id="clearLogButton" type="button">Clear Log</button>
             </div>

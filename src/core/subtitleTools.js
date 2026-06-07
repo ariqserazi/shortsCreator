@@ -92,9 +92,34 @@ function formatAssBlackWithOpacity(opacityPercent) {
   return `&H${alpha.toString(16).toUpperCase().padStart(2, "0")}000000`
 }
 
-function getCaptionStyle(settings) {
-  const fontSize = settings.captionFontSize
-  const y = settings.captionVerticalPosition
+function scaleNumber(value, scale, fallback) {
+  const rawValue = Number(value)
+  const source = Number.isFinite(rawValue) ? rawValue : fallback
+
+  return Math.max(1, Math.round(source * scale))
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function getAssScale(outputSize) {
+  const width = Number(outputSize && outputSize.width) || 1080
+  const height = Number(outputSize && outputSize.height) || 1920
+
+  return {
+    width,
+    height,
+    x: width / 1080,
+    y: height / 1920,
+    text: Math.min(width / 1080, height / 1920)
+  }
+}
+
+function getCaptionStyle(settings, outputSize) {
+  const scale = getAssScale(outputSize)
+  const fontSize = scaleNumber(settings.captionFontSize, scale.text, 58)
+  const y = clampNumber(scaleNumber(settings.captionVerticalPosition, scale.y, 1450), 40, scale.height - 40)
   const preset = settings.captionStylePreset
 
   if (preset === "boxed") {
@@ -132,23 +157,30 @@ function getCaptionStyle(settings) {
   }
 }
 
-function buildAssOverlay({ titleText, segment, settings, captions }) {
-  const captionStyle = getCaptionStyle(settings)
+function buildAssOverlay({ titleText, segment, settings, captions, outputSize }) {
+  const scale = getAssScale(outputSize)
+  const captionStyle = getCaptionStyle(settings, outputSize)
   const titleFontFamily = sanitizeAssField(settings.titleFontFamily, "Arial")
   const titleBoxColor = formatAssBlackWithOpacity(settings.titleHighlightOpacity)
   const title = escapeAssText(titleText)
+  const titleFontSize = scaleNumber(58, scale.text, 58)
+  const titleOutline = scaleNumber(4, scale.text, 4)
+  const titleMarginX = scaleNumber(70, scale.x, 70)
+  const titleMarginY = scaleNumber(86, scale.y, 86)
+  const captionMarginX = scaleNumber(70, scale.x, 70)
+  const captionMarginY = scaleNumber(70, scale.y, 70)
   const lines = [
     "[Script Info]",
     "ScriptType: v4.00+",
     "WrapStyle: 2",
     "ScaledBorderAndShadow: yes",
-    "PlayResX: 1080",
-    "PlayResY: 1920",
+    `PlayResX: ${scale.width}`,
+    `PlayResY: ${scale.height}`,
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Title,${titleFontFamily},58,&H00FFFFFF,&H000000FF,${titleBoxColor},${titleBoxColor},-1,0,0,0,100,100,0,0,3,4,0,8,70,70,86,1`,
-    `Style: Caption,Arial,${captionStyle.fontSize},${captionStyle.primary},&H000000FF,${captionStyle.outline},&HAA000000,-1,0,0,0,100,100,0,0,${captionStyle.borderStyle},${captionStyle.outlineSize},${captionStyle.shadow},5,70,70,70,1`,
+    `Style: Title,${titleFontFamily},${titleFontSize},&H00FFFFFF,&H000000FF,${titleBoxColor},${titleBoxColor},-1,0,0,0,100,100,0,0,3,${titleOutline},0,8,${titleMarginX},${titleMarginX},${titleMarginY},1`,
+    `Style: Caption,Arial,${captionStyle.fontSize},${captionStyle.primary},&H000000FF,${captionStyle.outline},&HAA000000,-1,0,0,0,100,100,0,0,${captionStyle.borderStyle},${captionStyle.outlineSize},${captionStyle.shadow},5,${captionMarginX},${captionMarginX},${captionMarginY},1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
@@ -166,7 +198,7 @@ function buildAssOverlay({ titleText, segment, settings, captions }) {
       continue
     }
 
-    lines.push(`Dialogue: 2,${formatAssTime(start)},${formatAssTime(end)},Caption,,0,0,0,,{\\an5\\pos(540,${captionStyle.y})}${escapeAssText(caption.text)}`)
+    lines.push(`Dialogue: 2,${formatAssTime(start)},${formatAssTime(end)},Caption,,0,0,0,,{\\an5\\pos(${Math.round(scale.width / 2)},${captionStyle.y})}${escapeAssText(caption.text)}`)
   }
 
   return `${lines.join("\n")}\n`

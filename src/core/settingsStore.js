@@ -16,7 +16,8 @@ class SettingsStore {
       }
 
       const parsed = JSON.parse(fs.readFileSync(this.filePath, "utf8"))
-      return normalizeSettings(Object.assign({}, DEFAULT_SETTINGS, parsed))
+      const migrated = migrateSettings(parsed)
+      return normalizeSettings(Object.assign({}, DEFAULT_SETTINGS, migrated))
     } catch (error) {
       return Object.assign({}, DEFAULT_SETTINGS)
     }
@@ -32,6 +33,16 @@ class SettingsStore {
   update(partialSettings) {
     return this.save(Object.assign({}, this.load(), partialSettings || {}))
   }
+}
+
+function migrateSettings(settings) {
+  const nextSettings = Object.assign({}, settings || {})
+
+  if (nextSettings.renderPreset === "fast" && nextSettings.encoderMode === "software") {
+    nextSettings.encoderMode = "auto"
+  }
+
+  return nextSettings
 }
 
 module.exports = {

@@ -2,7 +2,7 @@
 
 const fs = require("node:fs")
 const path = require("node:path")
-const { execFile } = require("node:child_process")
+const { execFile, spawn } = require("node:child_process")
 
 const INSTALL_HELP = [
   "FFmpeg and ffprobe are required to generate video parts. shortsCreator includes bundled FFmpeg tools for packaged builds.",
@@ -121,6 +121,113 @@ function execFileAsync(command, args, options = {}) {
   })
 }
 
+function parseFfmpegProgressValue(rawValue) {
+  const value = String(rawValue || "").trim()
+
+  if (!value) {
+    return 0
+  }
+
+  if (/^\d+$/.test(value)) {
+    return Number(value) / 1000000
+  }
+
+  const match = value.match(/^(\d+):(\d{2}):(\d{2})(?:\.(\d+))?$/)
+
+  if (!match) {
+    return 0
+  }
+
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  const seconds = Number(match[3])
+  const fraction = Number(`0.${match[4] || "0"}`)
+
+  return hours * 3600 + minutes * 60 + seconds + fraction
+}
+
+function parseProgressLine(line, state) {
+  const separatorIndex = line.indexOf("=")
+
+  if (separatorIndex === -1) {
+    return null
+  }
+
+  const key = line.slice(0, separatorIndex)
+  const value = line.slice(separatorIndex + 1)
+
+  if (key === "out_time_ms" || key === "out_time_us") {
+    state.outTime = parseFfmpegProgressValue(value)
+  } else if (key === "out_time") {
+    state.outTime = parseFfmpegProgressValue(value)
+  } else if (key === "fps") {
+    state.fps = value
+  } else if (key === "speed") {
+    state.speed = value
+  } else if (key === "progress") {
+    state.progress = value
+    return Object.assign({}, state)
+  }
+
+  return null
+}
+
+async function runFfmpegWithProgress(ffmpegPath, args, options = {}) {
+  const finalArgs = [
+    "-progress",
+    "pipe:1",
+    "-nostats",
+    "-stats_period",
+    "0.5",
+    ...args
+  ]
+
+  await new Promise((resolve, reject) => {
+    const child = spawn(ffmpegPath, finalArgs, {
+      cwd: options.cwd || process.cwd(),
+      env: options.env || process.env,
+      stdio: ["ignore", "pipe", "pipe"]
+    })
+    const state = {}
+    let stdoutBuffer = ""
+    let stderr = ""
+
+    child.stdout.setEncoding("utf8")
+    child.stdout.on("data", (chunk) => {
+      stdoutBuffer += chunk
+      const lines = stdoutBuffer.split(/\r?\n/)
+      stdoutBuffer = lines.pop() || ""
+
+      for (const line of lines) {
+        const progress = parseProgressLine(line, state)
+
+        if (progress && typeof options.onProgress === "function") {
+          options.onProgress(progress)
+        }
+      }
+    })
+
+    child.stderr.setEncoding("utf8")
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk
+
+      if (stderr.length > 1024 * 1024 * 4) {
+        stderr = stderr.slice(-1024 * 1024 * 2)
+      }
+    })
+
+    child.on("error", reject)
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+
+      reject(new Error(String(stderr || `FFmpeg exited with code ${code}`).trim()))
+    })
+  })
+}
+
 async function isRunnableTool(candidatePath) {
   if (path.isAbsolute(candidatePath) && !fs.existsSync(candidatePath)) {
     return false
@@ -154,6 +261,13 @@ async function resolveFfmpegPath(savedPath, options = {}) {
 
   for (const candidate of candidates) {
     if (await isRunnableTool(candidate.path)) {
+      if (options.requireLayoutFilters === false && !options.requireCaptionOverlay) {
+        return Object.assign({}, candidate, {
+          hasOverlay: false,
+          overlayFilter: ""
+        })
+      }
+
       const hasOverlay = await hasFfmpegOverlay(candidate.path)
       const overlayFilter = await getFfmpegOverlayFilter(candidate.path)
 
@@ -170,8 +284,12 @@ async function resolveFfmpegPath(savedPath, options = {}) {
 }
 
 async function detectFfmpegTools(savedPaths = {}) {
+  const needsAssOverlay = savedPaths.renderPreset !== "cutOnly" && (
+    savedPaths.captionSource === "srt" || savedPaths.showTitleLabel !== false
+  )
   const ffmpeg = await resolveFfmpegPath(savedPaths.ffmpegPath, {
-    requireCaptionOverlay: savedPaths.captionSource === "srt"
+    requireLayoutFilters: savedPaths.renderPreset !== "cutOnly",
+    requireCaptionOverlay: needsAssOverlay
   })
   const ffprobe = await resolveToolPath("ffprobe", savedPaths.ffprobePath)
   const ok = Boolean(ffmpeg && ffprobe)
@@ -320,5 +438,6 @@ module.exports = {
   hasFfmpegOverlay,
   getVideoDuration,
   runFfprobeJson,
-  runFfmpeg
+  runFfmpeg,
+  runFfmpegWithProgress
 }

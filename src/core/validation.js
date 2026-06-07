@@ -15,15 +15,17 @@ const DEFAULT_SETTINGS = Object.freeze({
   sourceVideo: "",
   outputFolder: "",
   videoTitle: "",
+  renderPreset: "fast",
   splitMode: "length",
   segmentLength: 60,
   partCount: 5,
   overlapSeconds: 5,
-  layoutMode: "blurred",
+  layoutMode: "crop",
   outputResolution: "720x1280",
+  showTitleLabel: true,
   titleFontFamily: "Arial",
   titleHighlightOpacity: 100,
-  encoderMode: "software",
+  encoderMode: "auto",
   encoderPreset: "ultrafast",
   parallelJobs: 1,
   captionSource: "none",
@@ -36,6 +38,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   ffprobePath: ""
 })
 
+const RENDER_PRESETS = new Set(["fast", "balanced", "highQuality", "cutOnly"])
 const SPLIT_MODES = new Set(["length", "parts"])
 const LAYOUT_MODES = new Set(["blurred", "crop", "black"])
 const OUTPUT_RESOLUTIONS = new Set(["720x1280", "1080x1920"])
@@ -56,8 +59,25 @@ function isSupportedInputVideo(filePath) {
   return SUPPORTED_INPUT_EXTENSIONS.includes(path.extname(String(filePath || "")).toLowerCase())
 }
 
+function toBoolean(value, fallback) {
+  if (typeof value === "boolean") {
+    return value
+  }
+
+  if (value === "true") {
+    return true
+  }
+
+  if (value === "false") {
+    return false
+  }
+
+  return fallback
+}
+
 function normalizeSettings(rawSettings) {
   const settings = Object.assign({}, DEFAULT_SETTINGS, rawSettings || {})
+  const renderPreset = RENDER_PRESETS.has(settings.renderPreset) ? settings.renderPreset : DEFAULT_SETTINGS.renderPreset
   const splitMode = SPLIT_MODES.has(settings.splitMode) ? settings.splitMode : DEFAULT_SETTINGS.splitMode
   const layoutMode = LAYOUT_MODES.has(settings.layoutMode) ? settings.layoutMode : DEFAULT_SETTINGS.layoutMode
   const outputResolution = OUTPUT_RESOLUTIONS.has(settings.outputResolution) ? settings.outputResolution : DEFAULT_SETTINGS.outputResolution
@@ -72,12 +92,14 @@ function normalizeSettings(rawSettings) {
     sourceVideo: String(settings.sourceVideo || "").trim(),
     outputFolder: String(settings.outputFolder || "").trim(),
     videoTitle: String(settings.videoTitle || "").trim(),
+    renderPreset,
     splitMode,
     segmentLength: toNumber(settings.segmentLength),
     partCount: toNumber(settings.partCount),
     overlapSeconds: toNumber(settings.overlapSeconds),
     layoutMode,
     outputResolution,
+    showTitleLabel: toBoolean(settings.showTitleLabel, DEFAULT_SETTINGS.showTitleLabel),
     titleFontFamily: String(settings.titleFontFamily || DEFAULT_SETTINGS.titleFontFamily).trim(),
     titleHighlightOpacity: toNumber(settings.titleHighlightOpacity),
     encoderMode,
@@ -176,8 +198,8 @@ function validateGenerationSettings(rawSettings) {
     throw new Error("CRF must be between 18 and 30.")
   }
 
-  if (!Number.isInteger(settings.parallelJobs) || settings.parallelJobs < 1 || settings.parallelJobs > 4) {
-    throw new Error("Parallel jobs must be a whole number between 1 and 4.")
+  if (!Number.isInteger(settings.parallelJobs) || settings.parallelJobs < 1 || settings.parallelJobs > 2) {
+    throw new Error("Parallel jobs must be 1 or 2.")
   }
 
   if (!settings.titleFontFamily) {
@@ -221,6 +243,7 @@ function ensureOutputFolder(outputFolder) {
 
 module.exports = {
   DEFAULT_SETTINGS,
+  RENDER_PRESETS,
   SUPPORTED_INPUT_EXTENSIONS,
   ensureOutputFolder,
   isSupportedInputVideo,

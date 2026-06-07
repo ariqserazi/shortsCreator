@@ -140,17 +140,23 @@ Rules:
 
 ## Layout Modes
 
+The Fast preset defaults to `720x1280` and `Crop to fill`. Balanced and High Quality default to `1080x1920`. Cut Only skips layout work completely and keeps the source aspect ratio.
+
 ### Blurred Background
 
-Default. A scaled, blurred copy fills the 1080x1920 canvas while the original video is centered on top. This works well for horizontal anime/video essay footage.
+A scaled, blurred copy fills the selected output canvas while the original video is centered on top. This works well for horizontal anime/video essay footage, but it is slower than crop or black background.
 
 ### Crop To Fill
 
-The video is scaled and cropped to fill 1080x1920. This is useful for already vertical or center-focused content.
+The video is cropped and scaled to fill the selected vertical output size. This is the fastest styled layout and is useful for center-focused content.
 
 ### Black Background
 
-The original video is fit inside 1080x1920 with a black background. This is useful when you do not want blur.
+The original video is fit inside the selected vertical output size with a black background. This is useful when you do not want blur.
+
+### Cut Only / No Styling
+
+Cut Only uses stream copy with no filters, no title label, no captions, and no 9:16 conversion. It is the fastest splitter mode, but the output keeps the original source layout.
 
 ## Captions
 
@@ -286,6 +292,7 @@ shortsCreator re-encodes each part to vertical H.264. Blurred background is more
 
 For faster generation:
 
+- use `Render Preset: Fast`
 - use `Output Size: 720x1280`
 - try `Encoder Method: Auto hardware if available` or `Require hardware H.264`; some files are still faster with software x264
 - try `Parallel Render Jobs: 2` on machines with enough CPU/GPU headroom
@@ -293,6 +300,7 @@ For faster generation:
 - use `Black background` or `Crop to fill` when blur is not needed
 - use a higher CRF such as `23` or `24` for faster/smaller output
 - keep captions off unless you need burned subtitles
+- use `Cut Only / No Styling` when you only need fast splitting and do not need vertical Shorts output
 
 The live log prints how long each generated part took.
 

@@ -5,7 +5,7 @@ const { dialog, ipcMain, shell } = require("electron")
 const { detectFfmpegTools } = require("../core/ffmpegTools")
 const { scanGeneratedParts } = require("../core/filenameUtils")
 const { readVideoInfo } = require("../core/videoInfo")
-const { generateVideoParts } = require("../core/videoProcessor")
+const { benchmarkVideoParts, generateVideoParts } = require("../core/videoProcessor")
 const { isSupportedInputVideo } = require("../core/validation")
 const { listSystemFonts } = require("../core/systemFonts")
 
@@ -34,7 +34,10 @@ function registerIpcHandlers(options) {
   async function checkFfmpeg(settings = getSavedSettings()) {
     const result = await detectFfmpegTools({
       ffmpegPath: settings.ffmpegPath,
-      ffprobePath: settings.ffprobePath
+      ffprobePath: settings.ffprobePath,
+      renderPreset: settings.renderPreset,
+      showTitleLabel: settings.showTitleLabel,
+      captionSource: settings.captionSource
     })
 
     toolState.ffmpegPath = result.ffmpegPath
@@ -177,6 +180,53 @@ function registerIpcHandlers(options) {
       }
 
       const result = await generateVideoParts({
+        settings: savedSettings,
+        ffmpegPath: toolState.ffmpegPath,
+        ffprobePath: toolState.ffprobePath,
+        reporter: {
+          log(message) {
+            sendRendererEvent("generation:log", String(message))
+          },
+          status(message) {
+            sendRendererEvent("generation:status", String(message))
+          },
+          progress(progress) {
+            sendRendererEvent("generation:progress", progress)
+          },
+          generated(filePath) {
+            sendRendererEvent("generation:generated", filePath)
+          }
+        }
+      })
+
+      sendRendererEvent("generation:done", result)
+      return result
+    } catch (error) {
+      sendRendererEvent("generation:error", error.message)
+      throw error
+    } finally {
+      isGenerating = false
+      sendRendererEvent("generation:state", { isGenerating: false })
+    }
+  })
+
+  ipcMain.handle("generation:benchmark", async (event, settings) => {
+    if (isGenerating) {
+      throw new Error("Generation is already running.")
+    }
+
+    isGenerating = true
+    sendRendererEvent("generation:state", { isGenerating: true })
+
+    try {
+      const savedSettings = saveSettings(Object.assign({}, getSavedSettings(), settings || {}))
+      const tools = await checkFfmpeg(savedSettings)
+
+      if (!tools.ok) {
+        throw new Error(tools.message)
+      }
+
+      const result = await benchmarkVideoParts({
         settings: savedSettings,
         ffmpegPath: toolState.ffmpegPath,
         ffprobePath: toolState.ffprobePath,

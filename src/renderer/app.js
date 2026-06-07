@@ -3,6 +3,40 @@
 
   const api = window.shortsCreator
   const dom = {}
+  const renderPresets = {
+    fast: {
+      outputResolution: "720x1280",
+      layoutMode: "crop",
+      encoderMode: "auto",
+      encoderPreset: "ultrafast",
+      crf: 24,
+      showTitleLabel: "true"
+    },
+    balanced: {
+      outputResolution: "1080x1920",
+      layoutMode: "crop",
+      encoderMode: "auto",
+      encoderPreset: "veryfast",
+      crf: 22,
+      showTitleLabel: "true"
+    },
+    highQuality: {
+      outputResolution: "1080x1920",
+      layoutMode: "crop",
+      encoderMode: "software",
+      encoderPreset: "medium",
+      crf: 20,
+      showTitleLabel: "true"
+    },
+    cutOnly: {
+      outputResolution: "720x1280",
+      layoutMode: "crop",
+      encoderMode: "auto",
+      encoderPreset: "ultrafast",
+      crf: 24,
+      showTitleLabel: "false"
+    }
+  }
   let generatedFiles = []
   let systemFonts = []
   let saveTimer = null
@@ -19,6 +53,7 @@
       "sourceVideo",
       "outputFolder",
       "videoTitle",
+      "renderPreset",
       "splitMode",
       "segmentLength",
       "partCount",
@@ -29,6 +64,7 @@
       "encoderMode",
       "encoderPreset",
       "parallelJobs",
+      "showTitleLabel",
       "titleFontFamily",
       "titleHighlightOpacity",
       "fontSearch",
@@ -47,6 +83,7 @@
       "chooseFfmpegButton",
       "chooseFfprobeButton",
       "generateButton",
+      "benchmarkButton",
       "openOutputButton",
       "clearLogButton",
       "statusText",
@@ -54,6 +91,7 @@
       "ffmpegSummary",
       "videoInfoText",
       "captionNote",
+      "renderPresetNote",
       "segmentLengthField",
       "partCountField",
       "srtFileField",
@@ -82,9 +120,15 @@
     dom.generateButton.addEventListener("click", generateParts)
     dom.openOutputButton.addEventListener("click", openOutputFolder)
     dom.clearLogButton.addEventListener("click", clearLog)
+    dom.renderPreset.addEventListener("change", () => {
+      applyPresetDefaults(dom.renderPreset.value)
+      updateConditionalFields()
+      queueSaveSettings()
+    })
     dom.splitMode.addEventListener("change", updateConditionalFields)
     dom.captionSource.addEventListener("change", updateConditionalFields)
     dom.encoderMode.addEventListener("change", updateConditionalFields)
+    dom.benchmarkButton.addEventListener("click", benchmarkRender)
     dom.sourceVideo.addEventListener("change", readSelectedVideoInfo)
     dom.outputFolder.addEventListener("change", refreshGeneratedListFromOutput)
 
@@ -137,6 +181,7 @@
       dom.sourceVideo,
       dom.outputFolder,
       dom.videoTitle,
+      dom.renderPreset,
       dom.splitMode,
       dom.segmentLength,
       dom.partCount,
@@ -147,6 +192,7 @@
       dom.encoderMode,
       dom.encoderPreset,
       dom.parallelJobs,
+      dom.showTitleLabel,
       dom.titleFontFamily,
       dom.titleHighlightOpacity,
       dom.captionSource,
@@ -161,16 +207,18 @@
     dom.sourceVideo.value = settings.sourceVideo || ""
     dom.outputFolder.value = settings.outputFolder || ""
     dom.videoTitle.value = settings.videoTitle || ""
+    dom.renderPreset.value = settings.renderPreset || "fast"
     dom.splitMode.value = settings.splitMode || "length"
     dom.segmentLength.value = settings.segmentLength || 60
     dom.partCount.value = settings.partCount || 5
     dom.overlapSeconds.value = Number.isFinite(settings.overlapSeconds) ? settings.overlapSeconds : 5
-    dom.layoutMode.value = settings.layoutMode || "blurred"
+    dom.layoutMode.value = settings.layoutMode || "crop"
     dom.outputResolution.value = settings.outputResolution || "720x1280"
     dom.crf.value = Number.isFinite(settings.crf) ? settings.crf : 22
-    dom.encoderMode.value = settings.encoderMode || "software"
+    dom.encoderMode.value = settings.encoderMode || "auto"
     dom.encoderPreset.value = settings.encoderPreset || "ultrafast"
     dom.parallelJobs.value = Number.isFinite(settings.parallelJobs) ? settings.parallelJobs : 1
+    dom.showTitleLabel.value = settings.showTitleLabel === false ? "false" : "true"
     dom.titleFontFamily.value = settings.titleFontFamily || "Arial"
     dom.titleHighlightOpacity.value = Number.isFinite(settings.titleHighlightOpacity) ? settings.titleHighlightOpacity : 100
     dom.captionSource.value = settings.captionSource || "none"
@@ -185,6 +233,7 @@
       sourceVideo: dom.sourceVideo.value.trim(),
       outputFolder: dom.outputFolder.value.trim(),
       videoTitle: dom.videoTitle.value.trim(),
+      renderPreset: dom.renderPreset.value,
       splitMode: dom.splitMode.value,
       segmentLength: Number(dom.segmentLength.value),
       partCount: Number(dom.partCount.value),
@@ -195,6 +244,7 @@
       encoderMode: dom.encoderMode.value,
       encoderPreset: dom.encoderPreset.value,
       parallelJobs: Number(dom.parallelJobs.value),
+      showTitleLabel: dom.showTitleLabel.value === "true",
       titleFontFamily: dom.titleFontFamily.value.trim(),
       titleHighlightOpacity: Number(dom.titleHighlightOpacity.value),
       captionSource: dom.captionSource.value,
@@ -221,14 +271,50 @@
     const useSrt = dom.captionSource.value === "srt"
     const useAuto = dom.captionSource.value === "auto"
     const useHardwareOnly = dom.encoderMode.value === "hardware"
+    const cutOnly = dom.renderPreset.value === "cutOnly"
 
     dom.segmentLengthField.classList.toggle("muted-field", splitByParts)
     dom.partCountField.classList.toggle("muted-field", !splitByParts)
     dom.encoderPreset.closest(".field").classList.toggle("muted-field", useHardwareOnly)
     dom.segmentLength.disabled = splitByParts
     dom.partCount.disabled = !splitByParts
-    dom.encoderPreset.disabled = useHardwareOnly
+    dom.encoderPreset.disabled = useHardwareOnly || cutOnly
+    ;[
+      dom.layoutMode,
+      dom.outputResolution,
+      dom.captionSource,
+      dom.captionStylePreset,
+      dom.captionFontSize,
+      dom.captionVerticalPosition,
+      dom.srtBrowseButton,
+      dom.srtFile,
+      dom.showTitleLabel,
+      dom.titleFontFamily,
+      dom.titleHighlightOpacity,
+      dom.fontSearch,
+      dom.refreshFontsButton
+    ].forEach((element) => {
+      element.disabled = cutOnly
+    })
+    dom.fontList.classList.toggle("disabled", cutOnly)
     dom.srtFileField.classList.toggle("hidden", !useSrt)
+
+    if (cutOnly) {
+      dom.renderPresetNote.textContent = "Cut Only is fastest, but it does not create vertical 9:16 videos or burned captions."
+      dom.captionNote.textContent = "Captions are disabled in Cut Only mode because the video is stream-copied without filters."
+    } else if (dom.layoutMode.value === "blurred") {
+      dom.renderPresetNote.textContent = "Blurred background is available, but slower because it adds extra scaling and blur filtering."
+    } else if (dom.renderPreset.value === "fast") {
+      dom.renderPresetNote.textContent = "Fast preset creates 720x1280 styled videos and prefers hardware encoding when available."
+    } else if (dom.renderPreset.value === "balanced") {
+      dom.renderPresetNote.textContent = "Balanced preset uses 1080x1920 output and still prefers hardware encoding."
+    } else {
+      dom.renderPresetNote.textContent = "High Quality uses 1080x1920 and software x264 for CRF-based quality."
+    }
+
+    if (cutOnly) {
+      return
+    }
 
     if (useAuto) {
       dom.captionNote.textContent = "Local Whisper-style transcription is prepared architecturally but not implemented in this version."
@@ -349,6 +435,35 @@
     }
   }
 
+  async function benchmarkRender() {
+    generatedFiles = []
+    renderGeneratedFiles()
+    setProgress(0)
+    setStatus("Preparing speed test...")
+    log("Starting 10-second speed test...")
+
+    try {
+      await api.benchmarkRender(getSettings())
+    } catch (error) {
+      setStatus("Speed test failed")
+    }
+  }
+
+  function applyPresetDefaults(presetId) {
+    const preset = renderPresets[presetId] || renderPresets.fast
+
+    dom.outputResolution.value = preset.outputResolution
+    dom.layoutMode.value = preset.layoutMode
+    dom.encoderMode.value = preset.encoderMode
+    dom.encoderPreset.value = preset.encoderPreset
+    dom.crf.value = preset.crf
+    dom.showTitleLabel.value = preset.showTitleLabel
+
+    if (presetId === "cutOnly") {
+      dom.captionSource.value = "none"
+    }
+  }
+
   async function openOutputFolder() {
     try {
       await api.openOutputFolder(dom.outputFolder.value.trim())
@@ -386,6 +501,7 @@
       dom.chooseFfmpegButton,
       dom.chooseFfprobeButton,
       dom.generateButton,
+      dom.benchmarkButton,
       dom.openOutputButton
     ]).forEach((element) => {
       element.disabled = isGenerating

@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld("shortsCreator", {
   generateParts(settings) {
     return ipcRenderer.invoke("generation:start", settings)
   },
+  benchmarkRender(settings) {
+    return ipcRenderer.invoke("generation:benchmark", settings)
+  },
   scanOutput(outputFolder) {
     return ipcRenderer.invoke("generation:scan-output", outputFolder)
   },
