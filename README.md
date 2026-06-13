@@ -61,7 +61,7 @@ The recommended Windows path is `shortsCreator-windows.bat`, not the installer.
 - Supports TikTok, simple, and boxed caption styles
 - Has render presets for Fast, Balanced, High Quality, and Cut Only
 - Supports Auto, Hardware, and Software encoder modes
-- Uses hardware H.264 encoders when available in Auto/Hardware mode
+- Uses hardware H.264 encoders when available, with software fallback in Auto mode
 - Copies audio first when possible and retries with AAC if audio copy fails
 - Shows FFmpeg progress, speed, and live logs while rendering
 - Includes a 10-second speed test render button

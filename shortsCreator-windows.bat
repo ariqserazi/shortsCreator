@@ -81,46 +81,57 @@ echo npm version: >> "%LOG_FILE%"
 call npm --version >> "%LOG_FILE%" 2>&1
 echo. >> "%LOG_FILE%"
 
-if not exist "node_modules" (
-  echo Installing shortsCreator dependencies...
-  echo This can take a few minutes the first time.
-  echo.
+if not exist "vendor\ffmpeg\win32-x64\ffmpeg.exe" (
+  echo WARNING: Bundled Windows ffmpeg.exe was not found.
+  echo WARNING: Bundled Windows ffmpeg.exe was not found. >> "%LOG_FILE%"
+)
 
-  if exist "package-lock.json" (
-    echo Running npm ci... >> "%LOG_FILE%"
-    call npm ci >> "%LOG_FILE%" 2>&1
-    if errorlevel 1 (
-      echo.
-      echo npm ci failed. Retrying with npm install...
-      echo.
-      echo npm ci failed. Retrying with npm install... >> "%LOG_FILE%"
-      call npm install >> "%LOG_FILE%" 2>&1
-      if errorlevel 1 (
-        echo.
-        echo ERROR: npm install failed.
-        echo See this log for details:
-        echo %LOG_FILE%
-        echo.
-        pause
-        exit /b 1
-      )
-    )
-  ) else (
-    echo Running npm install... >> "%LOG_FILE%"
-    call npm install >> "%LOG_FILE%" 2>&1
-    if errorlevel 1 (
-      echo.
-      echo ERROR: npm install failed.
-      echo See this log for details:
-      echo %LOG_FILE%
-      echo.
-      pause
-      exit /b 1
-    )
-  )
-) else (
-  echo Dependencies already installed.
-  echo Dependencies already installed. >> "%LOG_FILE%"
+if not exist "vendor\ffprobe\win32-x64\ffprobe.exe" (
+  echo WARNING: Bundled Windows ffprobe.exe was not found.
+  echo WARNING: Bundled Windows ffprobe.exe was not found. >> "%LOG_FILE%"
+)
+
+echo Installing or repairing shortsCreator dependencies...
+echo This can take a few minutes the first time.
+echo.
+echo Running npm install... >> "%LOG_FILE%"
+call npm install --no-audit --no-fund >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  echo.
+  echo ERROR: npm install failed.
+  echo Check your internet connection, then run this file again.
+  echo See this log for details:
+  echo %LOG_FILE%
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist "node_modules\.bin\electron.cmd" (
+  echo.
+  echo ERROR: Electron did not install correctly.
+  echo Delete the node_modules folder, then run this file again.
+  echo See this log for details:
+  echo %LOG_FILE%
+  echo.
+  echo ERROR: node_modules\.bin\electron.cmd was not found. >> "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+
+echo.
+echo Checking project files...
+echo Checking project files... >> "%LOG_FILE%"
+call npm run validate >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  echo.
+  echo ERROR: shortsCreator files are incomplete or damaged.
+  echo Download the full repo ZIP again, unzip it, then run this file from the unzipped folder.
+  echo See this log for details:
+  echo %LOG_FILE%
+  echo.
+  pause
+  exit /b 1
 )
 
 echo.

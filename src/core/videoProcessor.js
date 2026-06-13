@@ -235,12 +235,26 @@ function createProgressHandler({ report, segment, plan, getCompletedParts }) {
   }
 }
 
+function isLikelyAudioCopyError(error) {
+  const message = String(error && error.message ? error.message : error || "")
+
+  if (/Unrecognized option|Option not found|Error splitting the argument list|No such filter|Invalid filter|Unknown encoder|Error initializing output stream.*video/i.test(message)) {
+    return false
+  }
+
+  return /audio|Could not find tag for codec|codec .*not currently supported|Could not write header|muxer|muxing/i.test(message)
+}
+
 async function runFfmpegWithAudioFallback({ ffmpegPath, args, outputPath, audioMode, report, onProgress }) {
   try {
     await runFfmpegWithProgress(ffmpegPath, args, { onProgress })
     return audioMode
   } catch (error) {
     if (audioMode !== "copy") {
+      throw error
+    }
+
+    if (!isLikelyAudioCopyError(error)) {
       throw error
     }
 
@@ -355,7 +369,7 @@ async function generateStyledPart({ ffmpegPath, overlayFilterName, titleFontFile
         tempBackground.imagePath
       ] : [])
     ]
-    const baseArgs = [
+    const createRenderArgs = (activeEncoderPlan) => [
       "-y",
       "-hide_banner",
       "-loglevel",
@@ -371,7 +385,7 @@ async function generateStyledPart({ ffmpegPath, overlayFilterName, titleFontFile
       "[v]",
       "-map",
       "0:a?",
-      ...encoderPlan.encoderArgs,
+      ...activeEncoderPlan.encoderArgs,
       "-pix_fmt",
       "yuv420p",
       ...buildAudioEncoderArgs("copy"),
@@ -380,14 +394,40 @@ async function generateStyledPart({ ffmpegPath, overlayFilterName, titleFontFile
       outputPath
     ]
 
-    await runFfmpegWithAudioFallback({
-      ffmpegPath,
-      args: baseArgs,
-      outputPath,
-      audioMode: "copy",
-      report,
-      onProgress: createProgressHandler({ report, segment, plan, getCompletedParts })
-    })
+    try {
+      await runFfmpegWithAudioFallback({
+        ffmpegPath,
+        args: createRenderArgs(encoderPlan),
+        outputPath,
+        audioMode: "copy",
+        report,
+        onProgress: createProgressHandler({ report, segment, plan, getCompletedParts })
+      })
+    } catch (error) {
+      if (!encoderPlan.usesHardware || settings.encoderMode === "hardware") {
+        throw error
+      }
+
+      report.log(`Hardware encoder ${encoderPlan.encoderName} failed. Retrying with software x264.`)
+      fs.rmSync(outputPath, { force: true })
+      const softwareEncoderPlan = await selectVideoEncoder({
+        ffmpegPath,
+        encoderMode: "software",
+        renderPreset: settings.renderPreset,
+        platform: process.platform,
+        width: outputSize.width,
+        height: outputSize.height
+      })
+
+      await runFfmpegWithAudioFallback({
+        ffmpegPath,
+        args: createRenderArgs(softwareEncoderPlan),
+        outputPath,
+        audioMode: "copy",
+        report,
+        onProgress: createProgressHandler({ report, segment, plan, getCompletedParts })
+      })
+    }
 
     if (!fs.existsSync(outputPath)) {
       throw new Error(`FFmpeg finished but the output file was not created: ${outputPath}`)

@@ -6,9 +6,11 @@ const root = path.resolve(process.cwd())
 
 const requiredFiles = [
   ".gitignore",
+  "build-windows-exe.bat",
   "LICENSE",
   "README.md",
   "package.json",
+  "shortsCreator-windows.bat",
   "scripts/validate.mjs",
   "src/main/main.js",
   "src/main/preload.js",

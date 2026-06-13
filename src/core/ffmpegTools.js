@@ -177,8 +177,6 @@ async function runFfmpegWithProgress(ffmpegPath, args, options = {}) {
     "-progress",
     "pipe:1",
     "-nostats",
-    "-stats_period",
-    "0.5",
     ...args
   ]
 
