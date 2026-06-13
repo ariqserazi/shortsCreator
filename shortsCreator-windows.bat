@@ -8,13 +8,13 @@ echo.
 echo shortsCreator Windows launcher
 echo ==============================
 echo.
-echo Log file: %LOG_FILE%
+echo Log file: "%LOG_FILE%"
 echo.
 
 if exist "%LOG_FILE%" del /q "%LOG_FILE%" >nul 2>nul
 echo shortsCreator Windows launcher > "%LOG_FILE%"
 echo Started: %DATE% %TIME% >> "%LOG_FILE%"
-echo Folder: %CD% >> "%LOG_FILE%"
+echo Folder: "%CD%" >> "%LOG_FILE%"
 echo. >> "%LOG_FILE%"
 
 if not exist "package.json" (
@@ -49,7 +49,7 @@ if errorlevel 1 (
     echo ERROR: Node.js installation failed.
     echo Install Node.js LTS from https://nodejs.org/ and run this file again.
     echo See this log for details:
-    echo %LOG_FILE%
+    echo "%LOG_FILE%"
     echo.
     pause
     exit /b 1
@@ -101,7 +101,7 @@ if errorlevel 1 (
   echo ERROR: npm install failed.
   echo Check your internet connection, then run this file again.
   echo See this log for details:
-  echo %LOG_FILE%
+  echo "%LOG_FILE%"
   echo.
   pause
   exit /b 1
@@ -112,7 +112,7 @@ if not exist "node_modules\.bin\electron.cmd" (
   echo ERROR: Electron did not install correctly.
   echo Delete the node_modules folder, then run this file again.
   echo See this log for details:
-  echo %LOG_FILE%
+  echo "%LOG_FILE%"
   echo.
   echo ERROR: node_modules\.bin\electron.cmd was not found. >> "%LOG_FILE%"
   pause
@@ -128,7 +128,7 @@ if errorlevel 1 (
   echo ERROR: shortsCreator files are incomplete or damaged.
   echo Download the full repo ZIP again, unzip it, then run this file from the unzipped folder.
   echo See this log for details:
-  echo %LOG_FILE%
+  echo "%LOG_FILE%"
   echo.
   pause
   exit /b 1
@@ -142,7 +142,7 @@ if errorlevel 1 (
     echo.
     echo ERROR: shortsCreator failed to start.
     echo See this log for details:
-    echo %LOG_FILE%
+    echo "%LOG_FILE%"
     echo.
     pause
     exit /b 1

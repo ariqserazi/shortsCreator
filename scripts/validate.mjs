@@ -6,6 +6,7 @@ const root = path.resolve(process.cwd())
 
 const requiredFiles = [
   ".gitignore",
+  ".gitattributes",
   "build-windows-exe.bat",
   "LICENSE",
   "README.md",
