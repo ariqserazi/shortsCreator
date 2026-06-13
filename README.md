@@ -2,36 +2,25 @@
 
 shortsCreator is a desktop app for turning one long video into numbered short-form parts for TikTok, YouTube Shorts, Instagram Reels, and similar platforms.
 
-It is a normal Electron app. End users install it, open it, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
+It is a normal Electron app. Windows users can launch it from the included `.bat` file, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
 
 ## Easy Installation
 
-### Download The App
+### Windows Users
 
-End users should download the installer for their operating system from [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
-
-- macOS: download `shortsCreator-1.0.0.dmg`
-- Windows: download `shortsCreator-Setup-1.0.0.exe`
-
-Normal end users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, or a cloned repository.
-
-### Build An Installer From This Repo
-
-If you cloned the repo and want to create an installer yourself, use the launcher file for your operating system.
-
-Windows:
+Download the repo, unzip it, and double-click:
 
 ```text
-build-windows-exe.bat
+shortsCreator-windows.bat
 ```
 
-Double-click it to build:
+The Windows launcher installs Node.js LTS automatically with Windows Package Manager if `npm` is missing. On the first run, it installs the app dependencies. After that, it opens shortsCreator directly.
 
-```text
-dist/shortsCreator-Setup-1.0.0.exe
-```
+The launcher writes troubleshooting details to `windows-launch.log` in the repo folder. If startup fails, send that log along with the error shown in the terminal window.
 
-macOS:
+### macOS Users
+
+Download the macOS `.dmg` from [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases), or build it from this repo:
 
 ```text
 build-mac-dmg.command
@@ -43,7 +32,17 @@ Double-click it to build:
 dist/shortsCreator-1.0.0.dmg
 ```
 
-Both launchers run `npm install` first if `node_modules` is missing. The macOS launcher opens the `dist/` folder when the build finishes.
+The macOS launcher runs `npm install` first if `node_modules` is missing, then opens the `dist/` folder when the build finishes.
+
+### Build A Windows Installer
+
+If you still want to create a Windows installer manually, run:
+
+```text
+npm run build:win
+```
+
+The recommended Windows path is `shortsCreator-windows.bat`, not the installer.
 
 ## Current Features
 
@@ -83,18 +82,18 @@ The current development build is unsigned, so macOS may show a Gatekeeper warnin
 
 ### Windows Users
 
-1. Go to [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
-2. Download the Windows installer, for example `shortsCreator-Setup-1.0.0.exe`.
-3. Run the installer.
-4. Open shortsCreator from the Start Menu or desktop shortcut.
+1. Go to the GitHub repo page.
+2. Click `Code`, then `Download ZIP`.
+3. Unzip the folder.
+4. Double-click `shortsCreator-windows.bat`.
 
-The current development build is unsigned, so Windows may show a SmartScreen warning.
+The first run can take a few minutes because the launcher installs Node.js LTS if needed and installs the app dependencies. Later runs should open much faster.
 
 ### Do End Users Need Node Or FFmpeg?
 
-Normal end users do not need Node.js, npm, Git, Codex, Adobe Premiere Pro, or a cloned repository.
+Windows users do not need to install Node.js or npm manually when Windows Package Manager is available. They do need the downloaded shortsCreator repo folder because the `.bat` runs the app from those files.
 
-Packaged releases include FFmpeg and FFprobe binaries. If bundled FFmpeg is missing or you want to use a custom FFmpeg build, the app also lets you choose `ffmpeg` and `ffprobe` manually.
+Users do not need Git, Codex, or Adobe Premiere Pro. The repo includes FFmpeg and FFprobe binaries. If bundled FFmpeg is missing or you want to use a custom FFmpeg build, the app also lets you choose `ffmpeg` and `ffprobe` manually.
 
 ## Quick Start
 
@@ -379,25 +378,24 @@ Installer output is written to `dist/`.
 
 macOS installers are best built on macOS. Windows installers are best built on Windows or Windows CI. Do not assume one OS can perfectly build and sign every platform.
 
-## Release Flow
+## Distribution Flow
 
-Distribution page:
+Windows distribution:
 
-[https://github.com/ariqserazi/shortsCreator/releases](https://github.com/ariqserazi/shortsCreator/releases)
+1. Push the repo to GitHub.
+2. Tell Windows users to download the repo ZIP from the GitHub `Code` button.
+3. Tell them to unzip it and double-click `shortsCreator-windows.bat`.
 
-Recommended release flow:
+macOS release flow:
 
 1. Run `npm install`.
 2. Run `npm run validate`.
-3. On macOS, run `build-mac-dmg.command` or `npm run build:mac`.
-4. On Windows, run `build-windows-exe.bat` or `npm run build:win`.
-5. Upload generated files from `dist/` to a GitHub Release.
-6. Users download the correct installer for their OS.
+3. Run `build-mac-dmg.command` or `npm run build:mac`.
+4. Upload the generated DMG from `dist/` to a GitHub Release.
 
-Expected upload names:
+Expected macOS upload name:
 
 - `shortsCreator-1.0.0.dmg`
-- `shortsCreator-Setup-1.0.0.exe`
 
 ## Unsigned App Warnings
 
