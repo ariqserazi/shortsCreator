@@ -2,25 +2,43 @@
 
 shortsCreator is a desktop app for turning one long video into numbered short-form parts for TikTok, YouTube Shorts, Instagram Reels, and similar platforms.
 
-It is a normal Electron app. Windows users can launch it from the included `.bat` file, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
+Windows users launch it from the included `.bat` file. They download the repo ZIP, unzip it, double-click `shortsCreator-windows.bat`, choose a source video, choose split/render settings, and generate `.mp4` files. The source video is never modified.
 
-## Easy Installation
+## Windows Quick Start
 
-### Windows Users
+1. Open the GitHub repo page.
+2. Click `Code`, then `Download ZIP`.
+3. Unzip the downloaded folder.
+4. Open the unzipped folder.
+5. Double-click:
 
-Download the repo, unzip it, and double-click:
+   ```text
+   shortsCreator-windows.bat
+   ```
+
+The `.bat` file is the Windows launcher. It installs Node.js LTS automatically with Windows Package Manager if `npm` is missing, repairs app dependencies, checks the project files, and then opens shortsCreator.
+
+The first run can take a few minutes. Later runs should open much faster.
+
+If startup fails, send the error shown in the terminal window plus this log file:
 
 ```text
-shortsCreator-windows.bat
+windows-launch.log
 ```
 
-The Windows launcher installs Node.js LTS automatically with Windows Package Manager if `npm` is missing. On the first run, it installs the app dependencies. After that, it opens shortsCreator directly.
+Important: Windows users should not download only the `.bat` file by itself. The `.bat` file needs the rest of the repo files next to it.
 
-The launcher writes troubleshooting details to `windows-launch.log` in the repo folder. If startup fails, send that log along with the error shown in the terminal window.
+## Windows Notes
 
-### macOS Users
+- Users do not need Git, Codex, or Adobe Premiere Pro.
+- Users do not need to install Node.js manually when Windows Package Manager is available.
+- If Windows Package Manager is missing or blocked, install Node.js LTS from [nodejs.org](https://nodejs.org/), then run `shortsCreator-windows.bat` again.
+- If Windows warns about running a downloaded `.bat` file, choose to keep/run it only if you downloaded it from the correct repo.
+- `build-windows-exe.bat` is kept only for compatibility and forwards to `shortsCreator-windows.bat`.
 
-Download the macOS `.dmg` from [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases), or build it from this repo:
+## macOS
+
+Download the macOS `.dmg` from [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases), or build it from this repo on macOS:
 
 ```text
 build-mac-dmg.command
@@ -34,15 +52,15 @@ dist/shortsCreator-1.0.0.dmg
 
 The macOS launcher runs `npm install` first if `node_modules` is missing, then opens the `dist/` folder when the build finishes.
 
-### Build A Windows Installer
+## Developer Installer Builds
 
-If you still want to create a Windows installer manually, run:
+The recommended Windows path is `shortsCreator-windows.bat`, not an installer. If you still want to create a Windows NSIS installer manually, run:
 
 ```text
 npm run build:win
 ```
 
-The recommended Windows path is `shortsCreator-windows.bat`, not the installer.
+Installer output is written to `dist/`.
 
 ## Current Features
 
@@ -65,35 +83,9 @@ The recommended Windows path is `shortsCreator-windows.bat`, not the installer.
 - Copies audio first when possible and retries with AAC if audio copy fails
 - Shows FFmpeg progress, speed, and live logs while rendering
 - Includes a 10-second speed test render button
-- Bundles FFmpeg/FFprobe for packaged macOS and Windows builds
+- Includes bundled FFmpeg/FFprobe for Windows launcher and packaged builds
 
 Automatic local transcription is planned but not implemented yet. The app does not fake captions and does not use paid APIs or cloud transcription services.
-
-## Install The App
-
-### macOS Users
-
-1. Go to [GitHub Releases](https://github.com/ariqserazi/shortsCreator/releases).
-2. Download the macOS `.dmg`, for example `shortsCreator-1.0.0.dmg`.
-3. Open the `.dmg`.
-4. Open `shortsCreator.app`.
-
-The current development build is unsigned, so macOS may show a Gatekeeper warning. If needed, right-click the app, choose `Open`, then confirm.
-
-### Windows Users
-
-1. Go to the GitHub repo page.
-2. Click `Code`, then `Download ZIP`.
-3. Unzip the folder.
-4. Double-click `shortsCreator-windows.bat`.
-
-The first run can take a few minutes because the launcher installs Node.js LTS if needed and installs the app dependencies. Later runs should open much faster.
-
-### Do End Users Need Node Or FFmpeg?
-
-Windows users do not need to install Node.js or npm manually when Windows Package Manager is available. They do need the downloaded shortsCreator repo folder because the `.bat` runs the app from those files.
-
-Users do not need Git, Codex, or Adobe Premiere Pro. The repo includes FFmpeg and FFprobe binaries. If bundled FFmpeg is missing or you want to use a custom FFmpeg build, the app also lets you choose `ffmpeg` and `ffprobe` manually.
 
 ## Quick Start
 
@@ -322,7 +314,9 @@ The project expects platform-specific FFmpeg files in:
 
 macOS will not use the Windows `.exe`, and Windows will not use the macOS binary. Keeping both sets in the repo is fine, though it can make installer builds larger.
 
-## Build Installers From Source
+## Developer Build Commands
+
+Normal Windows users do not need this section. They should use `shortsCreator-windows.bat`.
 
 Developer requirements:
 
@@ -410,6 +404,24 @@ Production releases should eventually use:
 - a Windows code signing certificate for Windows
 
 ## Troubleshooting
+
+### Windows Launcher Does Not Open
+
+Use the full repo ZIP, not just the `.bat` file by itself.
+
+If `shortsCreator-windows.bat` fails:
+
+1. Keep the terminal window open.
+2. Read the error shown there.
+3. Open `windows-launch.log` in the same folder.
+4. Send both the terminal error and `windows-launch.log`.
+
+Common fixes:
+
+- If `npm` is missing and Windows Package Manager is unavailable, install Node.js LTS from [nodejs.org](https://nodejs.org/) and run the `.bat` again.
+- If Electron did not install correctly, delete the `node_modules` folder and run the `.bat` again.
+- If FFmpeg is missing, download the full repo ZIP again so the `vendor/` folder is included.
+- If Windows blocks the downloaded file, confirm it came from the correct repo, then choose to keep/run it.
 
 ### FFmpeg Is Missing
 
